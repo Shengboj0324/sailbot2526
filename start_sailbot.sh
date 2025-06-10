@@ -55,8 +55,15 @@ if [ "$missing_deps" = true ]; then
 fi
 
 # Build Fortran module for path planning
-echo -e "${YELLOW}Building Fortran module...${NC}"
-if [ -f "$SCRIPT_DIR/src/path_planning/build_fortran.sh" ]; then
+echo -e "${YELLOW}Building Fortran modules...${NC}"
+if [ -f "$SCRIPT_DIR/src/path_planning/build_all_fortran.sh" ]; then
+    cd "$SCRIPT_DIR/src/path_planning"
+    ./build_all_fortran.sh
+    if [ $? -ne 0 ]; then
+        echo -e "${YELLOW}Some Fortran builds failed, continuing...${NC}"
+    fi
+    cd "$SCRIPT_DIR"
+elif [ -f "$SCRIPT_DIR/src/path_planning/build_fortran.sh" ]; then
     cd "$SCRIPT_DIR/src/path_planning"
     ./build_fortran.sh
     if [ $? -ne 0 ]; then
@@ -76,11 +83,24 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Ensure Fortran module is in the right place
-if [ -f "$SCRIPT_DIR/src/path_planning/path_planning/leg_fortran_module*.so" ]; then
-    echo -e "${YELLOW}Ensuring Fortran module is in install directory...${NC}"
-    cp $SCRIPT_DIR/src/path_planning/path_planning/leg_fortran_module*.so \
-       $SCRIPT_DIR/install/path_planning/lib/python3.12/site-packages/path_planning/path_planning/ 2>/dev/null
+# Ensure Fortran modules are in the right place
+echo -e "${YELLOW}Ensuring Fortran modules are in install directory...${NC}"
+if [ -d "$SCRIPT_DIR/install/path_planning/lib/python3.12/site-packages/path_planning/path_planning" ]; then
+    # Copy modern Fortran module if it exists
+    if [ -f "$SCRIPT_DIR/src/path_planning/path_planning/leg_modern.so" ]; then
+        cp $SCRIPT_DIR/src/path_planning/path_planning/leg_modern.so \
+           $SCRIPT_DIR/install/path_planning/lib/python3.12/site-packages/path_planning/path_planning/ 2>/dev/null
+    fi
+    # Copy f2py Fortran module if it exists
+    if ls $SCRIPT_DIR/src/path_planning/path_planning/leg_fortran_module*.so 1> /dev/null 2>&1; then
+        cp $SCRIPT_DIR/src/path_planning/path_planning/leg_fortran_module*.so \
+           $SCRIPT_DIR/install/path_planning/lib/python3.12/site-packages/path_planning/path_planning/ 2>/dev/null
+    fi
+    # Copy parallel Fortran module if it exists
+    if [ -f "$SCRIPT_DIR/src/path_planning/path_planning/leg_parallel.so" ]; then
+        cp $SCRIPT_DIR/src/path_planning/path_planning/leg_parallel.so \
+           $SCRIPT_DIR/install/path_planning/lib/python3.12/site-packages/path_planning/path_planning/ 2>/dev/null
+    fi
 fi
 
 # Source the workspace

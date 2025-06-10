@@ -4,16 +4,69 @@ import os
 from dataclasses import dataclass
 from typing import List, Tuple, Optional
 import csv
+import ctypes
 from .geometry_utils import Angle, Vector
 
-# Import will be added after f2py compilation
+# Try to load modern Fortran implementation first
+MODERN_FORTRAN_AVAILABLE = False
+F2PY_FORTRAN_AVAILABLE = False
+
 try:
-    from . import leg_fortran_module
-    FORTRAN_AVAILABLE = True
-    print("[PYTHON] Fortran module imported successfully!")
-except ImportError:
-    FORTRAN_AVAILABLE = False
-    print("[PYTHON] WARNING: Fortran module not available, using Python fallback")
+    # Try to load modern Fortran implementation with ISO_C_BINDING
+    import os.path
+    import sys
+    
+    # Try multiple possible locations for the library
+    lib_paths = [
+        os.path.join(os.path.dirname(__file__), 'leg_modern.so'),
+        os.path.join(os.path.dirname(__file__), '../leg_modern.so'),
+        'leg_modern.so'
+    ]
+    
+    leg_modern_lib = None
+    for lib_path in lib_paths:
+        if os.path.exists(lib_path):
+            try:
+                leg_modern_lib = ctypes.CDLL(lib_path)
+                break
+            except:
+                pass
+    
+    if leg_modern_lib is not None:
+        # Define function signatures
+        # initialize_polar_data() -> int
+        leg_modern_lib.initialize_polar_data.restype = ctypes.c_int
+        leg_modern_lib.initialize_polar_data.argtypes = []
+        
+        # calculate_path(...) -> int
+        leg_modern_lib.calculate_path.restype = ctypes.c_int
+        leg_modern_lib.calculate_path.argtypes = [
+            ctypes.c_double,  # start_lat
+            ctypes.c_double,  # start_lon
+            ctypes.c_double,  # end_lat
+            ctypes.c_double,  # end_lon
+            ctypes.c_double,  # wind_angle
+            ctypes.c_double,  # boat_heading
+            ctypes.c_bool,    # first_maneuver_is_starboard
+            ctypes.POINTER(ctypes.c_double),  # waypoints_lat array
+            ctypes.POINTER(ctypes.c_double),  # waypoints_lon array
+            ctypes.POINTER(ctypes.c_int)      # n_waypoints
+        ]
+        
+        MODERN_FORTRAN_AVAILABLE = True
+        pass  # Modern Fortran module loaded successfully
+except Exception as e:
+    pass  # Modern Fortran module not available
+
+# Fall back to f2py implementation if modern not available
+if not MODERN_FORTRAN_AVAILABLE:
+    try:
+        from . import leg_fortran_module
+        F2PY_FORTRAN_AVAILABLE = True
+        pass  # F2py Fortran module imported successfully
+    except ImportError:
+        F2PY_FORTRAN_AVAILABLE = False
+        pass  # F2py Fortran module not available, using Python fallback
 
 class PolarData:
     """manages boat performance data from polar diagram
@@ -31,14 +84,11 @@ class PolarData:
         pol_path = os.path.join(current_dir, 'data', 'test.pol')
         self._load_from_file(pol_path)
         
-        print(f"[PYTHON] PolarData initialized:")
-        print(f"[PYTHON]   TWA values: {len(self.twa_values)} entries")
-        print(f"[PYTHON]   Upwind VMG: {self.upwind_vmg}")
-        print(f"[PYTHON]   Downwind VMG: {self.downwind_vmg}")
+        # PolarData initialized successfully
 
     def _load_from_file(self, filepath: str):
         """load and parse polar data from file"""
-        print(f"[PYTHON] Loading polar data from: {filepath}")
+        # Loading polar data
         
         with open(filepath, 'r') as f:
             lines = f.readlines()
@@ -62,8 +112,7 @@ class PolarData:
         self.upwind_vmg = float(maxvmg[0])
         self.downwind_vmg = float(maxvmg[1])
         
-        print(f"[PYTHON] Loaded {len(self.twa_values)} TWA values")
-        print(f"[PYTHON] Using wind speed column {wind_speed_idx} (3.5 m/s)")
+        # Polar data loaded
 
     def get_boat_speed(self, twa: float) -> float:
         """get boat speed for given true wind angle at 8 mph wind"""
@@ -74,18 +123,21 @@ class PolarData:
 class Leg:
     """calculates optimal path between waypoints considering wind conditions"""
     def __init__(self):
-        print("[PYTHON] Initializing Leg calculator")
+        # Initializing Leg calculator
         self.polar_data = PolarData()
         # Define the upwind and downwind no-sail zones (relative to boat heading)
         self.upwind_zone = (315, 45)   # 45 degrees on either side of bow
         self.downwind_zone = (135, 225)  # 45 degrees on either side of stern
         
         # Initialize Fortran module if available
-        if FORTRAN_AVAILABLE:
-            print("[PYTHON] Initializing Fortran module")
+        if MODERN_FORTRAN_AVAILABLE:
+            # Initialize modern Fortran polar data
+            status = leg_modern_lib.initialize_polar_data()
+            if status != 0:
+                print(f"Warning: Modern Fortran initialization returned status {status}")
+        elif F2PY_FORTRAN_AVAILABLE:
+            # Initialize f2py Fortran polar data
             leg_fortran_module.leg_fortran.load_polar_data()
-        else:
-            print("[PYTHON] Running in Python-only mode")
 
     def calculate_path(self, start_point: Tuple[float, float],
                       end_point: Tuple[float, float],
@@ -106,16 +158,44 @@ class Leg:
         returns:
             list of waypoints including any intermediate tacking/jibing points
         """
-        print("\n[PYTHON] ============================================")
-        print(f"[PYTHON] calculate_path called:")
-        print(f"[PYTHON]   Start: {start_point}")
-        print(f"[PYTHON]   End: {end_point}")
-        print(f"[PYTHON]   Wind angle (rel to boat): {wind_angle}")
-        print(f"[PYTHON]   Boat heading: {boat_heading}")
-        print(f"[PYTHON]   First maneuver starboard: {first_maneuver_is_starboard}")
+        # Calculate optimal path
         
-        if FORTRAN_AVAILABLE:
-            print("[PYTHON] Using FORTRAN implementation")
+        if MODERN_FORTRAN_AVAILABLE:
+            # Using modern FORTRAN implementation with ISO_C_BINDING
+            
+            # Prepare output arrays
+            waypoints_lat = (ctypes.c_double * 10)()
+            waypoints_lon = (ctypes.c_double * 10)()
+            n_waypoints = ctypes.c_int()
+            
+            # Call modern Fortran function
+            status = leg_modern_lib.calculate_path(
+                ctypes.c_double(start_point[0]),
+                ctypes.c_double(start_point[1]),
+                ctypes.c_double(end_point[0]),
+                ctypes.c_double(end_point[1]),
+                ctypes.c_double(wind_angle),
+                ctypes.c_double(boat_heading),
+                ctypes.c_bool(first_maneuver_is_starboard),
+                waypoints_lat,
+                waypoints_lon,
+                ctypes.byref(n_waypoints)
+            )
+            
+            if status != 0:
+                # Modern Fortran returned error, fall back to Python
+                return self._calculate_path_python(start_point, end_point, wind_angle, 
+                                                  boat_heading, first_maneuver_is_starboard)
+            
+            # Convert to list of tuples
+            waypoints = [(waypoints_lat[i], waypoints_lon[i]) for i in range(n_waypoints.value)]
+            
+            # Path calculated successfully using modern Fortran
+            
+            return waypoints
+            
+        elif F2PY_FORTRAN_AVAILABLE:
+            # Using f2py FORTRAN implementation
             
             # Prepare output arrays
             waypoints_lat = np.zeros(10, dtype=np.float64)
@@ -133,13 +213,11 @@ class Leg:
             # Convert to list of tuples
             waypoints = [(waypoints_lat[i], waypoints_lon[i]) for i in range(n_waypoints)]
             
-            print(f"[PYTHON] Fortran returned {n_waypoints} waypoints:")
-            for i, wp in enumerate(waypoints):
-                print(f"[PYTHON]   Waypoint {i+1}: {wp}")
+            # Path calculated successfully using f2py Fortran
             
             return waypoints
         else:
-            print("[PYTHON] Using Python fallback implementation")
+            # Using Python fallback implementation
             return self._calculate_path_python(start_point, end_point, wind_angle, 
                                               boat_heading, first_maneuver_is_starboard)
     
@@ -231,7 +309,7 @@ class Leg:
 
         if abs(D_det) < 1e-9: # Avoid division by zero if vectors are collinear
             # This shouldn't happen with valid VMG angles but as a fallback:
-            print("[PYTHON] WARNING: Collinear tacking vectors, defaulting to direct path.")
+            # WARNING: Collinear tacking vectors, defaulting to direct path
             return [end]
 
         D_scalar1 = np.linalg.det([[v_target.xcomp(), leg2_vec.xcomp()],
@@ -284,7 +362,7 @@ class Leg:
                                [leg1_vec.ycomp(), leg2_vec.ycomp()]])
 
         if abs(D_det) < 1e-9: # Avoid division by zero if vectors are collinear
-            print("[PYTHON] WARNING: Collinear jibing vectors, defaulting to direct path.")
+            # WARNING: Collinear jibing vectors, defaulting to direct path
             return [end]
 
         D_scalar1 = np.linalg.det([[v_target.xcomp(), leg2_vec.xcomp()],

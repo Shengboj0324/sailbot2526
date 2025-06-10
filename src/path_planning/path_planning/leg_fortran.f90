@@ -26,7 +26,7 @@ contains
         ! Initialize polar data with values from test.pol at 3.5 m/s (8 mph)
         integer :: i
         
-        print *, "[FORTRAN] Loading polar data for 8 mph wind speed"
+        ! Loading polar data for 8 mph wind speed
         
         ! TWA values from 0 to 180 degrees
         do i = 1, 61
@@ -49,10 +49,7 @@ contains
             2.53636d0, 2.50642d0, 2.4849d0, 2.4797d0, 2.48576d0, &
             2.48576d0 /)
         
-        print *, "[FORTRAN] Loaded", n_twa, "TWA values"
-        print *, "[FORTRAN] TWA range:", twa_values(1), "to", twa_values(n_twa)
-        print *, "[FORTRAN] Upwind VMG angle:", upwind_vmg
-        print *, "[FORTRAN] Downwind VMG angle:", downwind_vmg
+        ! Polar data loaded successfully
         
         polar_loaded = .true.
     end subroutine load_polar_data
@@ -75,7 +72,7 @@ contains
         
         speed = boat_speeds(idx)
         
-        print *, "[FORTRAN] get_boat_speed: TWA =", twa, "-> speed =", speed
+        ! Return boat speed for given TWA
     end function get_boat_speed
     
     function normalize_angle(angle) result(normalized)
@@ -110,35 +107,28 @@ contains
         real(8) :: wind_angle_normalized, target_to_wind_angle
         real(8) :: global_wind_angle
         logical :: upwind_sailing, downwind_sailing
-        integer :: i
         
         ! Ensure polar data is loaded
         if (.not. polar_loaded) then
             call load_polar_data()
         end if
         
-        print *, "[FORTRAN] ============================================"
-        print *, "[FORTRAN] calculate_path called with:"
-        print *, "[FORTRAN]   Start:", start_lat, start_lon
-        print *, "[FORTRAN]   End:", end_lat, end_lon
-        print *, "[FORTRAN]   Wind angle (rel to boat):", wind_angle
-        print *, "[FORTRAN]   Boat heading:", boat_heading
-        print *, "[FORTRAN]   First maneuver starboard:", first_maneuver_is_starboard
+        ! Calculate optimal path
         
         ! Calculate desired course angle (global reference frame)
         course_angle = atan2(end_lon - start_lon, end_lat - start_lat) * RAD2DEG
-        print *, "[FORTRAN] Course angle (global):", course_angle
+        ! Course angle calculated
         
         ! Calculate angle between course and boat heading (relative to boat)
         course_relative_to_boat = mod(course_angle - boat_heading, 360.0d0)
         if (course_relative_to_boat > 180.0d0) then
             course_relative_to_boat = course_relative_to_boat - 360.0d0
         end if
-        print *, "[FORTRAN] Course relative to boat:", course_relative_to_boat
+        ! Course relative to boat calculated
         
         ! Normalize wind angle to 0-360 range
         wind_angle_normalized = mod(wind_angle, 360.0d0)
-        print *, "[FORTRAN] Wind angle normalized:", wind_angle_normalized
+        ! Wind angle normalized
         
         ! Determine if upwind or downwind sailing
         upwind_sailing = (wind_angle_normalized >= UPWIND_ZONE_START .or. &
@@ -146,43 +136,38 @@ contains
         downwind_sailing = (wind_angle_normalized >= DOWNWIND_ZONE_START .and. &
                            wind_angle_normalized <= DOWNWIND_ZONE_END)
         
-        print *, "[FORTRAN] Upwind sailing:", upwind_sailing
-        print *, "[FORTRAN] Downwind sailing:", downwind_sailing
+        ! Sailing mode determined
         
         ! Calculate angle between desired course and wind
         target_to_wind_angle = mod(course_relative_to_boat - wind_angle_normalized, 360.0d0)
         if (target_to_wind_angle > 180.0d0) then
             target_to_wind_angle = target_to_wind_angle - 360.0d0
         end if
-        print *, "[FORTRAN] Target to wind angle:", target_to_wind_angle
+        ! Target to wind angle calculated
         
         ! Convert wind to global reference frame
         global_wind_angle = mod(boat_heading + wind_angle_normalized, 360.0d0)
-        print *, "[FORTRAN] Global wind angle:", global_wind_angle
+        ! Global wind angle calculated
         
         ! Determine if we need to tack or jibe
         if (upwind_sailing .and. abs(target_to_wind_angle) < upwind_vmg) then
-            print *, "[FORTRAN] Need to TACK (sailing too close to wind)"
+            ! Need to tack
             call calculate_upwind_path(start_lat, start_lon, end_lat, end_lon, &
                                      global_wind_angle, boat_heading, first_maneuver_is_starboard, &
                                      waypoints_lat, waypoints_lon, n_waypoints)
         else if (downwind_sailing .and. abs(target_to_wind_angle) > downwind_vmg) then
-            print *, "[FORTRAN] Need to JIBE (sailing too downwind)"
+            ! Need to jibe
             call calculate_downwind_path(start_lat, start_lon, end_lat, end_lon, &
                                        global_wind_angle, boat_heading, first_maneuver_is_starboard, &
                                        waypoints_lat, waypoints_lon, n_waypoints)
         else
-            print *, "[FORTRAN] Direct path possible"
+            ! Direct path possible
             waypoints_lat(1) = end_lat
             waypoints_lon(1) = end_lon
             n_waypoints = 1
         end if
         
-        print *, "[FORTRAN] Path calculation complete. Waypoints:", n_waypoints
-        do i = 1, n_waypoints
-            print *, "[FORTRAN]   Waypoint", i, ":", waypoints_lat(i), waypoints_lon(i)
-        end do
-        print *, "[FORTRAN] ============================================"
+        ! Path calculation complete
         
     end subroutine calculate_path
     
@@ -203,22 +188,22 @@ contains
         real(8) :: det, det_scalar1, scalar1
         real(8) :: tack_lat, tack_lon
         
-        print *, "[FORTRAN] Calculating upwind (tacking) path"
+        ! Calculating upwind (tacking) path
         
         ! Vector from start to end
         target_x = end_lon - start_lon
         target_y = end_lat - start_lat
         target_dist = sqrt(target_x**2 + target_y**2)
         
-        print *, "[FORTRAN] Target vector:", target_x, target_y, "dist:", target_dist
+        ! Target vector calculated
         
         ! Calculate tacking angles (global frame)
         ! Wind + 180 +/- upwind_vmg
         k_angle = global_wind_angle + 180.0d0 + upwind_vmg  ! Starboard tack
         j_angle = global_wind_angle + 180.0d0 - upwind_vmg  ! Port tack
         
-        print *, "[FORTRAN] Starboard tack angle:", k_angle
-        print *, "[FORTRAN] Port tack angle:", j_angle
+        ! Debug print removed
+        ! Debug print removed
         
         ! Convert to unit vectors
         k_x = cos(k_angle * DEG2RAD)
@@ -232,20 +217,20 @@ contains
             leg1_y = k_y
             leg2_x = j_x
             leg2_y = j_y
-            print *, "[FORTRAN] First leg: STARBOARD"
+            ! Debug print removed
         else
             leg1_x = j_x
             leg1_y = j_y
             leg2_x = k_x
             leg2_y = k_y
-            print *, "[FORTRAN] First leg: PORT"
+            ! Debug print removed
         end if
         
         ! Solve system: target = scalar1 * leg1 + scalar2 * leg2
         det = leg1_x * leg2_y - leg2_x * leg1_y
         
         if (abs(det) < 1.0d-9) then
-            print *, "[FORTRAN] WARNING: Collinear vectors, using direct path"
+            ! Debug print removed
             waypoints_lat(1) = end_lat
             waypoints_lon(1) = end_lon
             n_waypoints = 1
@@ -255,14 +240,14 @@ contains
         det_scalar1 = target_x * leg2_y - leg2_x * target_y
         scalar1 = det_scalar1 / det
         
-        print *, "[FORTRAN] Determinant:", det
-        print *, "[FORTRAN] Scalar1:", scalar1
+        ! Debug print removed
+        ! Debug print removed
         
         ! Calculate tack point
         tack_lon = start_lon + leg1_x * scalar1
         tack_lat = start_lat + leg1_y * scalar1
         
-        print *, "[FORTRAN] Tack point:", tack_lat, tack_lon
+        ! Debug print removed
         
         ! Return waypoints
         waypoints_lat(1) = tack_lat
@@ -290,22 +275,22 @@ contains
         real(8) :: det, det_scalar1, scalar1
         real(8) :: jibe_lat, jibe_lon
         
-        print *, "[FORTRAN] Calculating downwind (jibing) path"
+        ! Debug print removed
         
         ! Vector from start to end
         target_x = end_lon - start_lon
         target_y = end_lat - start_lat
         target_dist = sqrt(target_x**2 + target_y**2)
         
-        print *, "[FORTRAN] Target vector:", target_x, target_y, "dist:", target_dist
+        ! Target vector calculated
         
         ! Calculate jibing angles (global frame)
         ! Wind + 180 +/- downwind_vmg
         k_angle = global_wind_angle + 180.0d0 + downwind_vmg  ! Starboard jibe
         j_angle = global_wind_angle + 180.0d0 - downwind_vmg  ! Port jibe
         
-        print *, "[FORTRAN] Starboard jibe angle:", k_angle
-        print *, "[FORTRAN] Port jibe angle:", j_angle
+        ! Debug print removed
+        ! Debug print removed
         
         ! Convert to unit vectors
         k_x = cos(k_angle * DEG2RAD)
@@ -319,20 +304,20 @@ contains
             leg1_y = k_y
             leg2_x = j_x
             leg2_y = j_y
-            print *, "[FORTRAN] First leg: STARBOARD"
+            ! Debug print removed
         else
             leg1_x = j_x
             leg1_y = j_y
             leg2_x = k_x
             leg2_y = k_y
-            print *, "[FORTRAN] First leg: PORT"
+            ! Debug print removed
         end if
         
         ! Solve system: target = scalar1 * leg1 + scalar2 * leg2
         det = leg1_x * leg2_y - leg2_x * leg1_y
         
         if (abs(det) < 1.0d-9) then
-            print *, "[FORTRAN] WARNING: Collinear vectors, using direct path"
+            ! Debug print removed
             waypoints_lat(1) = end_lat
             waypoints_lon(1) = end_lon
             n_waypoints = 1
@@ -342,14 +327,14 @@ contains
         det_scalar1 = target_x * leg2_y - leg2_x * target_y
         scalar1 = det_scalar1 / det
         
-        print *, "[FORTRAN] Determinant:", det
-        print *, "[FORTRAN] Scalar1:", scalar1
+        ! Debug print removed
+        ! Debug print removed
         
         ! Calculate jibe point
         jibe_lon = start_lon + leg1_x * scalar1
         jibe_lat = start_lat + leg1_y * scalar1
         
-        print *, "[FORTRAN] Jibe point:", jibe_lat, jibe_lon
+        ! Debug print removed
         
         ! Return waypoints
         waypoints_lat(1) = jibe_lat
