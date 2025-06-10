@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'cellular_comm = sensors.cellular_comm_node:main',
+            'cellular_comm_enhanced = sensors.cellular_comm_node_enhanced:main',
             'gps = sensors.gps:main',
             'rudder_control = sensors.rudder_control_node:main',
             'winch_control = sensors.winch_control_node:main',
