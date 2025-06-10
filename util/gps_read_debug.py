@@ -50,7 +50,7 @@ def parse_and_print(line):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('-p','--port', default='/dev/ttyACM0',
+    p.add_argument('-p','--port', default='/dev/ttyACM1',
                    help='serial port (e.g. /dev/ttyACM0, /dev/ttyUSB0, /dev/ttyAMA0)')
     p.add_argument('-b','--baud', type=int, default=38400, help='baud rate')
     args = p.parse_args()
