@@ -28,7 +28,7 @@ GEAR_RATIO = 5
 STEPS_PER_REVOLUTION = 1600
 
 # State file
-STATE_FILE = os.path.expanduser("~/.sail_position.json")
+STATE_FILE = os.path.expanduser("~/.sail_pos")
 
 class SailController:
     def __init__(self):
