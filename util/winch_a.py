@@ -17,8 +17,6 @@ BAUD_RATE = 115200
 # Command codes
 CMD_WINCH_CW_STEPS = 0x12   # Let sail out
 CMD_WINCH_CCW_STEPS = 0x13  # Bring sail in
-CMD_ENABLE_MOTOR = 0x14      # Enable motor
-CMD_DISABLE_MOTOR = 0x15     # Disable motor
 
 # Sail parameters
 BOOM_LENGTH = 48
@@ -30,7 +28,6 @@ STEPS_PER_REVOLUTION = 1600
 class SailController:
     def __init__(self):
         self.current_angle = 0.0  # Always start at 0 (homed position)
-        self.motor_enabled = False  # Assume motor starts disabled
         self.ser = None
 
     def connect(self):
@@ -44,34 +41,6 @@ class SailController:
         if self.ser:
             self.ser.close()
             self.ser = None
-
-    def enable_motor(self):
-        """Enable the winch motor"""
-        self.connect()
-        command = bytes([CMD_ENABLE_MOTOR])
-        self.ser.write(command)
-
-        # Read response
-        time.sleep(0.2)
-        while self.ser.in_waiting > 0:
-            print(f"Arduino: {self.ser.readline().decode('utf-8').strip()}")
-
-        self.motor_enabled = True
-        print("Motor enabled")
-
-    def disable_motor(self):
-        """Disable the winch motor"""
-        self.connect()
-        command = bytes([CMD_DISABLE_MOTOR])
-        self.ser.write(command)
-
-        # Read response
-        time.sleep(0.2)
-        while self.ser.in_waiting > 0:
-            print(f"Arduino: {self.ser.readline().decode('utf-8').strip()}")
-
-        self.motor_enabled = False
-        print("Motor disabled")
 
     def angle_to_steps(self, angle):
         """Convert angle to absolute steps from 0"""
@@ -97,11 +66,6 @@ class SailController:
 
     def move_to_angle(self, target_angle):
         """Move sail from current position to target angle"""
-        # Check if motor is enabled
-        if not self.motor_enabled:
-            print("Motor is disabled! Use 'enable' command first.")
-            return
-
         target_angle = max(0.0, min(88.0, target_angle))
 
         # Calculate steps for both positions
@@ -128,16 +92,13 @@ class SailController:
             command = bytes([CMD_WINCH_CCW_STEPS]) + struct.pack('>I', abs(steps_diff))
 
         self.ser.write(command)
+        self.ser.flush()  # Force immediate send
 
         # Read response
         time.sleep(0.5)
         while self.ser.in_waiting > 0:
             response = self.ser.readline().decode('utf-8').strip()
             print(f"Arduino: {response}")
-            # Check if motor was disabled
-            if "disabled" in response.lower():
-                self.motor_enabled = False
-                return
 
         # Update position
         self.current_angle = target_angle
@@ -150,7 +111,7 @@ class SailController:
 
     def status(self):
         """Display current status"""
-        print(f"\nMotor Status: {'ENABLED' if self.motor_enabled else 'DISABLED'}")
+        print(f"\nMotor Status: ALWAYS ENABLED")
         print(f"Current sail angle: {self.current_angle}°")
         print(f"Steps from 0°: {self.angle_to_steps(self.current_angle)}")
         print("\nExample movements:")
@@ -164,19 +125,13 @@ class SailController:
         print("Sail Control CLI")
         print("================")
         print("NOTE: This assumes the motor has been homed to 0° position")
-        print(f"Motor Status: {'ENABLED' if self.motor_enabled else 'DISABLED'}")
+        print("Motor Status: ALWAYS ENABLED")
         print(f"Current position: {self.current_angle}°")
         print("\nCommands:")
         print("  <angle>  - Move to angle (0-88)")
-        print("  enable   - Enable motor")
-        print("  disable  - Disable motor")
-        print("  status   - Show current position and motor state")
+        print("  status   - Show current position")
         print("  home     - Reset position to 0° (after manual homing)")
         print("  quit     - Exit")
-
-        # Auto-enable motor on first run if needed
-        if not self.motor_enabled:
-            print("\n*** Motor is disabled. Use 'enable' to activate it. ***")
 
         while True:
             try:
@@ -186,10 +141,6 @@ class SailController:
                     break
                 elif cmd == 'status' or cmd == 's':
                     self.status()
-                elif cmd == 'enable' or cmd == 'e':
-                    self.enable_motor()
-                elif cmd == 'disable' or cmd == 'd':
-                    self.disable_motor()
                 elif cmd == 'home' or cmd == 'h':
                     self.home()
                 else:

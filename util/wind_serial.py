@@ -9,7 +9,7 @@ import time
 import sys
 
 class WindSensorReader:
-    def __init__(self, port='/dev/ttyACM1', baudrate=115200):
+    def __init__(self, port='/dev/arduino_wind', baudrate=115200):
         """
         Initialize wind sensor reader
         
@@ -82,10 +82,10 @@ class WindSensorReader:
 def main():
     """Example usage"""
     # Use only ACM0
-    reader = WindSensorReader(port='/dev/ttyACM1')
+    reader = WindSensorReader(port='/dev/arduino_wind')
     
     if not reader.connect():
-        print("Failed to connect to /dev/ttyACM0")
+        print("Failed to connect to /dev/arduino_wind")
         sys.exit(1)
     
     print("Reading wind data... (Ctrl+C to stop)")
