@@ -24,7 +24,7 @@ source /opt/ros/jazzy/setup.bash
 echo -e "${YELLOW}Checking dependencies...${NC}"
 missing_deps=false
 
-for pkg in python3-serial python3-smbus i2c-tools; do
+for pkg in python3-serial python3-smbus i2c-tools gfortran; do
     if ! dpkg -l | grep -q "$pkg"; then
         echo -e "${RED}Missing dependency: $pkg${NC}"
         missing_deps=true
@@ -37,11 +37,35 @@ if ! python3 -c "import websocket" 2>/dev/null; then
     missing_deps=true
 fi
 
+if ! python3 -c "import numpy" 2>/dev/null; then
+    echo -e "${RED}Missing Python dependency: numpy${NC}"
+    missing_deps=true
+fi
+
+if ! command -v meson &> /dev/null; then
+    echo -e "${RED}Missing build tool: meson (required for Python 3.12+)${NC}"
+    missing_deps=true
+fi
+
 if [ "$missing_deps" = true ]; then
     echo -e "${RED}Please install missing dependencies:${NC}"
-    echo -e "sudo apt update && sudo apt install -y python3-serial python3-smbus i2c-tools"
-    echo -e "pip3 install websocket-client"
+    echo -e "sudo apt update && sudo apt install -y python3-serial python3-smbus i2c-tools gfortran meson"
+    echo -e "pip3 install websocket-client numpy"
     exit 1
+fi
+
+# Build Fortran module for path planning
+echo -e "${YELLOW}Building Fortran module...${NC}"
+if [ -f "$SCRIPT_DIR/src/path_planning/build_fortran.sh" ]; then
+    cd "$SCRIPT_DIR/src/path_planning"
+    ./build_fortran.sh
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Fortran build failed! Please check errors above.${NC}"
+        exit 1
+    fi
+    cd "$SCRIPT_DIR"
+else
+    echo -e "${YELLOW}Warning: Fortran build script not found, skipping...${NC}"
 fi
 
 # Build the packages
@@ -50,6 +74,13 @@ colcon build --packages-select path_planning sailboat_control sensors
 if [ $? -ne 0 ]; then
     echo -e "${RED}Build failed! Please check errors above.${NC}"
     exit 1
+fi
+
+# Ensure Fortran module is in the right place
+if [ -f "$SCRIPT_DIR/src/path_planning/path_planning/leg_fortran_module*.so" ]; then
+    echo -e "${YELLOW}Ensuring Fortran module is in install directory...${NC}"
+    cp $SCRIPT_DIR/src/path_planning/path_planning/leg_fortran_module*.so \
+       $SCRIPT_DIR/install/path_planning/lib/python3.12/site-packages/path_planning/path_planning/ 2>/dev/null
 fi
 
 # Source the workspace

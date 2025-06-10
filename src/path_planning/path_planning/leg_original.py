@@ -6,15 +6,6 @@ from typing import List, Tuple, Optional
 import csv
 from .geometry_utils import Angle, Vector
 
-# Import will be added after f2py compilation
-try:
-    from . import leg_fortran_module
-    FORTRAN_AVAILABLE = True
-    print("[PYTHON] Fortran module imported successfully!")
-except ImportError:
-    FORTRAN_AVAILABLE = False
-    print("[PYTHON] WARNING: Fortran module not available, using Python fallback")
-
 class PolarData:
     """manages boat performance data from polar diagram
 
@@ -30,16 +21,9 @@ class PolarData:
         current_dir = os.path.dirname(__file__)
         pol_path = os.path.join(current_dir, 'data', 'test.pol')
         self._load_from_file(pol_path)
-        
-        print(f"[PYTHON] PolarData initialized:")
-        print(f"[PYTHON]   TWA values: {len(self.twa_values)} entries")
-        print(f"[PYTHON]   Upwind VMG: {self.upwind_vmg}")
-        print(f"[PYTHON]   Downwind VMG: {self.downwind_vmg}")
 
     def _load_from_file(self, filepath: str):
         """load and parse polar data from file"""
-        print(f"[PYTHON] Loading polar data from: {filepath}")
-        
         with open(filepath, 'r') as f:
             lines = f.readlines()
 
@@ -61,9 +45,6 @@ class PolarData:
         maxvmg = lines[-1].strip().split(';')[1:]
         self.upwind_vmg = float(maxvmg[0])
         self.downwind_vmg = float(maxvmg[1])
-        
-        print(f"[PYTHON] Loaded {len(self.twa_values)} TWA values")
-        print(f"[PYTHON] Using wind speed column {wind_speed_idx} (3.5 m/s)")
 
     def get_boat_speed(self, twa: float) -> float:
         """get boat speed for given true wind angle at 8 mph wind"""
@@ -74,18 +55,10 @@ class PolarData:
 class Leg:
     """calculates optimal path between waypoints considering wind conditions"""
     def __init__(self):
-        print("[PYTHON] Initializing Leg calculator")
         self.polar_data = PolarData()
         # Define the upwind and downwind no-sail zones (relative to boat heading)
         self.upwind_zone = (315, 45)   # 45 degrees on either side of bow
         self.downwind_zone = (135, 225)  # 45 degrees on either side of stern
-        
-        # Initialize Fortran module if available
-        if FORTRAN_AVAILABLE:
-            print("[PYTHON] Initializing Fortran module")
-            leg_fortran_module.leg_fortran.load_polar_data()
-        else:
-            print("[PYTHON] Running in Python-only mode")
 
     def calculate_path(self, start_point: Tuple[float, float],
                       end_point: Tuple[float, float],
@@ -106,49 +79,6 @@ class Leg:
         returns:
             list of waypoints including any intermediate tacking/jibing points
         """
-        print("\n[PYTHON] ============================================")
-        print(f"[PYTHON] calculate_path called:")
-        print(f"[PYTHON]   Start: {start_point}")
-        print(f"[PYTHON]   End: {end_point}")
-        print(f"[PYTHON]   Wind angle (rel to boat): {wind_angle}")
-        print(f"[PYTHON]   Boat heading: {boat_heading}")
-        print(f"[PYTHON]   First maneuver starboard: {first_maneuver_is_starboard}")
-        
-        if FORTRAN_AVAILABLE:
-            print("[PYTHON] Using FORTRAN implementation")
-            
-            # Prepare output arrays
-            waypoints_lat = np.zeros(10, dtype=np.float64)
-            waypoints_lon = np.zeros(10, dtype=np.float64)
-            
-            # Call Fortran function
-            waypoints_lat, waypoints_lon, n_waypoints = leg_fortran_module.leg_fortran.calculate_path(
-                start_point[0], start_point[1],
-                end_point[0], end_point[1],
-                wind_angle,
-                boat_heading,
-                first_maneuver_is_starboard
-            )
-            
-            # Convert to list of tuples
-            waypoints = [(waypoints_lat[i], waypoints_lon[i]) for i in range(n_waypoints)]
-            
-            print(f"[PYTHON] Fortran returned {n_waypoints} waypoints:")
-            for i, wp in enumerate(waypoints):
-                print(f"[PYTHON]   Waypoint {i+1}: {wp}")
-            
-            return waypoints
-        else:
-            print("[PYTHON] Using Python fallback implementation")
-            return self._calculate_path_python(start_point, end_point, wind_angle, 
-                                              boat_heading, first_maneuver_is_starboard)
-    
-    def _calculate_path_python(self, start_point: Tuple[float, float],
-                              end_point: Tuple[float, float],
-                              wind_angle: float,
-                              boat_heading: float,
-                              first_maneuver_is_starboard: bool = True) -> List[Tuple[float, float]]:
-        """Python fallback implementation"""
         # Calculate desired course angle (global reference frame)
         course_angle = math.degrees(math.atan2(
             end_point[1] - start_point[1],
@@ -231,7 +161,7 @@ class Leg:
 
         if abs(D_det) < 1e-9: # Avoid division by zero if vectors are collinear
             # This shouldn't happen with valid VMG angles but as a fallback:
-            print("[PYTHON] WARNING: Collinear tacking vectors, defaulting to direct path.")
+            self.get_logger().warning("Collinear tacking vectors, defaulting to direct path.")
             return [end]
 
         D_scalar1 = np.linalg.det([[v_target.xcomp(), leg2_vec.xcomp()],
@@ -284,7 +214,7 @@ class Leg:
                                [leg1_vec.ycomp(), leg2_vec.ycomp()]])
 
         if abs(D_det) < 1e-9: # Avoid division by zero if vectors are collinear
-            print("[PYTHON] WARNING: Collinear jibing vectors, defaulting to direct path.")
+            self.get_logger().warning("Collinear jibing vectors, defaulting to direct path.")
             return [end]
 
         D_scalar1 = np.linalg.det([[v_target.xcomp(), leg2_vec.xcomp()],

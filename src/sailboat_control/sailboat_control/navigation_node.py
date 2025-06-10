@@ -84,7 +84,6 @@ class NavigationNode(Node):
         self.previous_lon = 0.0
         self.previous_heading = 0.0
         self.wind_direction = 0.0       # in degrees
-        self.wind_speed = 5.0           # in m/s
         self.current_speed = 0.0        # in m/s
         self.rotational_velocity = 0.0  # in rad/s
         self.gps_timestamp = 0          # for calculating heading
@@ -293,7 +292,6 @@ class NavigationNode(Node):
             start,
             end,
             self.wind_direction,
-            self.wind_speed,
             self.current_heading
         )
 
@@ -334,36 +332,23 @@ class NavigationNode(Node):
 
     def calculate_apparent_wind_angle(self) -> float:
         """
-        Calculate apparent wind angle relative to boat
+        Calculate wind angle relative to boat
+        
+        Since we're using fixed wind speed, we just return the true wind angle
+        relative to the boat heading.
 
         Returns:
-            Apparent wind angle in degrees relative to boat heading
+            Wind angle in degrees relative to boat heading
         """
-        # Calculate boat velocity vector
-        boat_vel_x = self.current_speed * math.sin(math.radians(self.current_heading))
-        boat_vel_y = self.current_speed * math.cos(math.radians(self.current_heading))
-
-        # Calculate true wind vector (assuming wind_direction is where wind is coming FROM)
-        # Convert to where wind is going TO by adding 180°
-        wind_to_direction = (self.wind_direction + 180) % 360
-        true_wind_x = self.wind_speed * math.sin(math.radians(wind_to_direction))
-        true_wind_y = self.wind_speed * math.cos(math.radians(wind_to_direction))
-
-        # Calculate apparent wind (true wind - boat velocity)
-        apparent_x = true_wind_x - boat_vel_x
-        apparent_y = true_wind_y - boat_vel_y
-
-        # Calculate apparent wind angle (global frame)
-        apparent_angle_global = math.degrees(math.atan2(apparent_x, apparent_y)) % 360
-
-        # Convert to angle relative to boat heading
-        apparent_angle_relative = (apparent_angle_global - self.current_heading) % 360
+        # Calculate true wind angle relative to boat
+        # wind_direction is where wind is coming FROM
+        wind_angle_relative = (self.wind_direction - self.current_heading) % 360
 
         # Normalize to [-180, 180]
-        if apparent_angle_relative > 180:
-            apparent_angle_relative -= 360
+        if wind_angle_relative > 180:
+            wind_angle_relative -= 360
 
-        return apparent_angle_relative
+        return wind_angle_relative
 
     def normalize_angle(self, angle: float) -> float:
         """Normalize angle to [-180, 180] range"""
