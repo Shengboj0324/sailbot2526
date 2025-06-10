@@ -31,9 +31,16 @@ for pkg in python3-serial python3-smbus i2c-tools; do
     fi
 done
 
+# Check for Python packages
+if ! python3 -c "import websocket" 2>/dev/null; then
+    echo -e "${RED}Missing Python dependency: websocket-client${NC}"
+    missing_deps=true
+fi
+
 if [ "$missing_deps" = true ]; then
     echo -e "${RED}Please install missing dependencies:${NC}"
     echo -e "sudo apt update && sudo apt install -y python3-serial python3-smbus i2c-tools"
+    echo -e "pip3 install websocket-client"
     exit 1
 fi
 
@@ -66,7 +73,7 @@ start_node sensors rudder_control
 start_node sensors winch_control
 start_node sensors wind_sensor
 start_node sensors wind_smoother
-start_node sensors radio_comm
+start_node sensors cellular_comm
 start_node sailboat_control navigation
 start_node sailboat_control state_management
 

@@ -11,7 +11,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
     ],
-    install_requires=['setuptools', 'pyserial'],
+    install_requires=['setuptools', 'pyserial', 'websocket-client'],
     zip_safe=True,
     maintainer='your_name',
     maintainer_email='your_email@example.com',
@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'radio_comm = sensors.radio_comm_node:main',
+            'cellular_comm = sensors.cellular_comm_node:main',
             'gps = sensors.gps:main',
             'rudder_control = sensors.rudder_control_node:main',
             'winch_control = sensors.winch_control_node:main',
