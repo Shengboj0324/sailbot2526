@@ -91,3 +91,19 @@ class D(Event):
             Waypoint(14.56, 58.90)
         ]
         boat.state.current_waypoint = boat.waypoints[0]
+
+class Se(Event):
+    def initialize_event(self, boat):
+        """search event init"""
+        print("initializing search event type...")
+        boat.autonomous_system_initialized = True
+        boat.state.autonomous_enabled = True
+        print("autonomous system initialized for search")
+
+        # For search event, we only need a reference position (center of search area)
+        # The boat will be positioned 50m away and approach downwind
+        boat.waypoints = [
+            Waypoint(12.34, 56.78)  # Reference position for search area center
+        ]
+        boat.state.current_waypoint = boat.waypoints[0]
+        print("search reference position set:", boat.waypoints[0])

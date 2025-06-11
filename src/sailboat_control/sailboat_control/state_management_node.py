@@ -17,6 +17,14 @@ class StateManagementNode(Node):
             self.radio_callback,
             10
         )
+        
+        # Global wind angle subscription for dynamic updates
+        self.global_wind_subscriber = self.create_subscription(
+            Float32,
+            'global_wind_angle',
+            self.global_wind_callback,
+            10
+        )
 
         # Add status publisher for boat status
         self.status_publisher = self.create_publisher(
@@ -38,9 +46,32 @@ class StateManagementNode(Node):
             10
         )
 
+        # Get event type from parameter or default to developer_mode
+        self.declare_parameter('event_type', 'developer_mode')
+        event_type = self.get_parameter('event_type').value
+        
+        # Get global wind parameters
+        self.declare_parameter('global_wind_angle', 0.0)
+        self.declare_parameter('use_global_wind', False)
+        self.declare_parameter('wind_sensor_timeout', 5.0)
+        
+        global_wind_angle = self.get_parameter('global_wind_angle').value
+        use_global_wind = self.get_parameter('use_global_wind').value
+        wind_sensor_timeout = self.get_parameter('wind_sensor_timeout').value
+        
         # Create the boat instance and pass the node for sensor access
-        self.boat = Boat("developer_mode", self)
+        self.boat = Boat(event_type, self)
         self.boat.start_event()
+        
+        # Configure global wind settings if event control exists
+        if hasattr(self.boat, 'event_control') and self.boat.event_control:
+            self.boat.event_control.set_global_wind_angle(global_wind_angle)
+            self.boat.event_control.enable_global_wind(use_global_wind)
+            self.boat.event_control.set_wind_sensor_timeout(wind_sensor_timeout)
+        
+        self.get_logger().info(f"Boat initialized with event type: {event_type}")
+        if use_global_wind:
+            self.get_logger().info(f"Using global wind angle: {global_wind_angle}°")
 
         # Command handler mapping
         self.command_handlers = {
@@ -56,6 +87,9 @@ class StateManagementNode(Node):
 
         # Create a timer to periodically publish status (every 5 seconds)
         self.create_timer(5.0, self.publish_status)
+        
+        # Create a control loop timer for continuous autonomous control (10Hz)
+        self.control_timer = self.create_timer(0.1, self.control_loop)
 
         self.get_logger().info("State management node initialized")
 
@@ -71,6 +105,12 @@ class StateManagementNode(Node):
             self.publish_status()
         else:
             self.get_logger().warn(f"Unknown command received: {command}")
+    
+    def global_wind_callback(self, msg: Float32):
+        """handle global wind angle updates"""
+        if hasattr(self.boat, 'event_control') and self.boat.event_control:
+            self.boat.event_control.set_global_wind_angle(msg.data)
+            self.get_logger().info(f"Updated global wind angle to {msg.data}°")
 
     def _handle_rc_control(self):
         """handle RC control command"""
@@ -144,6 +184,14 @@ class StateManagementNode(Node):
                 status['position'] = current_pos
                 status['speed'] = self.boat.event_control.get_current_speed()
                 status['wind_direction'] = self.boat.event_control.get_wind_direction()
+                
+                # Add search-specific status if this is a search event
+                if self.boat.event_type.lower() == "search" and hasattr(self.boat.event_control, 'get_search_status'):
+                    status['search_status'] = self.boat.event_control.get_search_status()
+                
+                # Add wind status information
+                if hasattr(self.boat.event_control, 'get_wind_status'):
+                    status['wind_status'] = self.boat.event_control.get_wind_status()
             except AttributeError:
                 # Handle case where event_control doesn't have all methods
                 self.get_logger().debug("Some event_control methods not available")
@@ -172,6 +220,18 @@ class StateManagementNode(Node):
         msg.data = angle
         self.sail_publisher.publish(msg)
         self.get_logger().info(f"Set sail angle to {angle}°")
+    
+    def control_loop(self):
+        """Main control loop that runs continuously"""
+        # Only run autonomous control if in autonomous mode
+        if self.boat.state.control_mode == ControlMode.AUTONOMOUS:
+            if hasattr(self.boat, 'event_control') and self.boat.event_control and \
+               hasattr(self.boat.event_control, 'handle_autonomous'):
+                # Call the event's autonomous control method
+                self.boat.event_control.handle_autonomous()
+        elif self.boat.state.control_mode == ControlMode.RC:
+            if hasattr(self.boat, 'event_control') and self.boat.event_control:
+                self.boat.event_control.handle_rc()
 
 def main(args=None):
     rclpy.init(args=args)

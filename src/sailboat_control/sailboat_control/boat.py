@@ -3,7 +3,7 @@ from typing import List, Optional
 from rclpy.node import Node
 from path_planning.path_planning.waypoint import Waypoint
 from .common import ControlMode  # Changed from local definition
-from .events import F, Pr, S, E, P, D
+from .events import F, Pr, S, E, P, D, Se
 from .event_control import create_event_control
 
 class BoatState:
@@ -33,7 +33,8 @@ class Boat:
             "station_keeping": S,
             "endurance": E,
             "payload": P,
-            "developer_mode": D
+            "developer_mode": D,
+            "search": Se
         }
         
         event_class = event_classes.get(self.event_type.lower())
