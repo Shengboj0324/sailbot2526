@@ -86,9 +86,9 @@ class D(Event):
         boat.state.autonomous_enabled = True
 
         boat.waypoints = [
-            Waypoint(12.34, 56.78),
-            Waypoint(13.45, 57.89),
-            Waypoint(14.56, 58.90)
+            Waypoint(42.2764956, -71.7577678),
+            # Waypoint(13.45, 57.89),
+            # Waypoint(14.56, 58.90)
         ]
         boat.state.current_waypoint = boat.waypoints[0]
 
