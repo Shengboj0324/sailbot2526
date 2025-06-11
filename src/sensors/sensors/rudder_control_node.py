@@ -24,7 +24,7 @@ class RudderControlNode(Node):
     SERVO_CMD = 0x20  # Command byte for servo control
     
     # Rudder configuration based on new system
-    NEUTRAL_SERVO_ANGLE = 57  # True 0 position for rudder
+    NEUTRAL_SERVO_ANGLE = 55  # True 0 position for rudder
     MIN_RUDDER_ANGLE = -21.0  # Maximum angle to port (left)
     MAX_RUDDER_ANGLE = 21.0   # Maximum angle to starboard (right)
     

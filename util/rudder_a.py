@@ -16,7 +16,7 @@ BAUD_RATE = 115200
 SERVO_CMD = 0x20
 
 # Rudder configuration
-NEUTRAL_SERVO_ANGLE = 57  # True 0 position for rudder
+NEUTRAL_SERVO_ANGLE = 55  # True 0 position for rudder
 MIN_RUDDER_ANGLE = -21    # Maximum left
 MAX_RUDDER_ANGLE = 21     # Maximum right
 
