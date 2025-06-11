@@ -55,9 +55,17 @@ class StateManagementNode(Node):
         self.declare_parameter('use_global_wind', False)
         self.declare_parameter('wind_sensor_timeout', 5.0)
         
+        # Get control timing parameters
+        self.declare_parameter('rudder_update_interval', 3.0)
+        self.declare_parameter('sail_update_interval', 10.0)
+        self.declare_parameter('gps_buffer_delay', 3.0)
+        
         global_wind_angle = self.get_parameter('global_wind_angle').value
         use_global_wind = self.get_parameter('use_global_wind').value
         wind_sensor_timeout = self.get_parameter('wind_sensor_timeout').value
+        rudder_update_interval = self.get_parameter('rudder_update_interval').value
+        sail_update_interval = self.get_parameter('sail_update_interval').value
+        gps_buffer_delay = self.get_parameter('gps_buffer_delay').value
         
         # Create the boat instance and pass the node for sensor access
         self.boat = Boat(event_type, self)
@@ -68,10 +76,23 @@ class StateManagementNode(Node):
             self.boat.event_control.set_global_wind_angle(global_wind_angle)
             self.boat.event_control.enable_global_wind(use_global_wind)
             self.boat.event_control.set_wind_sensor_timeout(wind_sensor_timeout)
+            
+            # Configure control timing parameters
+            self.boat.event_control.rudder_update_interval = rudder_update_interval
+            self.boat.event_control.sail_update_interval = sail_update_interval
+            self.boat.event_control.position_buffer_delay = gps_buffer_delay
+            
+            # Configure search-specific timing if it's a search event
+            if event_type.lower() == "search" and hasattr(self.boat.event_control, 'configure_search'):
+                self.boat.event_control.configure_search(
+                    rudder_interval=rudder_update_interval,
+                    sail_interval=sail_update_interval
+                )
         
         self.get_logger().info(f"Boat initialized with event type: {event_type}")
         if use_global_wind:
             self.get_logger().info(f"Using global wind angle: {global_wind_angle}°")
+        self.get_logger().info(f"Control timing - Rudder: {rudder_update_interval}s, Sail: {sail_update_interval}s, GPS delay: {gps_buffer_delay}s")
 
         # Command handler mapping
         self.command_handlers = {

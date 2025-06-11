@@ -11,6 +11,8 @@ from .buoy_detection import BuoyDetector
 from std_msgs.msg import String, Int32
 import json
 from math import cos, radians
+from collections import deque
+import time
 
 class EventControl(ABC):
     """base class for event control"""
@@ -34,6 +36,18 @@ class EventControl(ABC):
         self.global_wind_angle = 0.0
         self.wind_sensor_timeout = 5.0  # seconds without wind data before using global
         self.last_wind_update_time = None
+        
+        # GPS position buffering for delayed position calculations
+        self.position_buffer = deque(maxlen=100)  # Store last 100 positions (10 seconds at 10Hz)
+        self.position_buffer_delay = 3.0  # seconds to look back for position
+        
+        # Control update timing
+        self.last_rudder_update_time = 0.0
+        self.last_sail_update_time = 0.0
+        self.rudder_update_interval = 3.0  # seconds between rudder updates
+        self.sail_update_interval = 10.0  # seconds between sail updates
+        self.last_wind_for_sail = 0.0  # Track wind angle for sail changes
+        self.significant_wind_change = 15.0  # degrees of wind change to trigger sail update
 
         # set up buoy detector with default 5 meter threshold
         self.buoy_detector = BuoyDetector(threshold_distance=5.0)
@@ -90,6 +104,14 @@ class EventControl(ABC):
         """store latest gps position data and check for proximity to buoys"""
         self.current_lat = msg.latitude
         self.current_lon = msg.longitude
+        
+        # Add position to buffer with timestamp
+        current_time = time.time()
+        self.position_buffer.append({
+            'time': current_time,
+            'lat': msg.latitude,
+            'lon': msg.longitude
+        })
 
         # Check if we're near any buoys
         newly_reached_buoys = self.buoy_detector.check_buoy_proximity(
@@ -269,6 +291,63 @@ class EventControl(ABC):
             status["sensor_timed_out"] = True
             
         return status
+    
+    def get_delayed_position(self, delay_seconds: float = None) -> Optional[Tuple[float, float]]:
+        """Get GPS position from specified seconds ago"""
+        if delay_seconds is None:
+            delay_seconds = self.position_buffer_delay
+            
+        if not self.position_buffer:
+            return None
+            
+        current_time = time.time()
+        target_time = current_time - delay_seconds
+        
+        # Find the position closest to target time
+        best_position = None
+        min_time_diff = float('inf')
+        
+        for pos in self.position_buffer:
+            time_diff = abs(pos['time'] - target_time)
+            if time_diff < min_time_diff:
+                min_time_diff = time_diff
+                best_position = pos
+                
+        if best_position and min_time_diff < 1.0:  # Within 1 second of target
+            return (best_position['lat'], best_position['lon'])
+        return None
+    
+    def should_update_rudder(self) -> bool:
+        """Check if it's time to update rudder"""
+        current_time = time.time()
+        if current_time - self.last_rudder_update_time >= self.rudder_update_interval:
+            self.last_rudder_update_time = current_time
+            return True
+        return False
+    
+    def should_update_sail(self) -> bool:
+        """Check if it's time to update sail (time-based or significant wind change)"""
+        current_time = time.time()
+        current_wind = self.get_wind_direction()
+        
+        # Check time interval
+        time_elapsed = current_time - self.last_sail_update_time >= self.sail_update_interval
+        
+        # Check significant wind change
+        wind_change = abs(current_wind - self.last_wind_for_sail)
+        # Handle wrap-around at 360 degrees
+        if wind_change > 180:
+            wind_change = 360 - wind_change
+            
+        significant_change = wind_change >= self.significant_wind_change
+        
+        if time_elapsed or significant_change:
+            self.last_sail_update_time = current_time
+            self.last_wind_for_sail = current_wind
+            if significant_change:
+                self.node.get_logger().info(f"Significant wind change detected: {wind_change:.1f}°")
+            return True
+        return False
 
     def enable_autonomous_navigation(self):
         """Enable autonomous navigation via NavigationNode"""
@@ -563,51 +642,83 @@ class SearchControl(EventControl):
 
     def _visual_servo_control(self):
         """Control rudder to minimize angle offset to buoy"""
+        # Only update rudder at specified interval
+        if not self.should_update_rudder():
+            return
+            
+        # Get delayed position for more stable heading calculation
+        delayed_pos = self.get_delayed_position()
+        current_pos = self.get_current_position()
+        
+        if delayed_pos and current_pos:
+            # Log position data being used
+            self.node.get_logger().debug(
+                f"Using positions - Current: ({current_pos[0]:.6f}, {current_pos[1]:.6f}), "
+                f"3s ago: ({delayed_pos[0]:.6f}, {delayed_pos[1]:.6f})"
+            )
+        
         # P-controller for rudder based on angle offset
         rudder_angle = -self.rudder_gain * self.buoy_angle_offset
-
+        
         # Clamp rudder angle
         rudder_angle = max(-self.max_rudder_angle, min(self.max_rudder_angle, rudder_angle))
-
+        
         # Publish rudder command
         rudder_msg = Float32()
         rudder_msg.data = rudder_angle
         self.rudder_publisher.publish(rudder_msg)
-
-        self.node.get_logger().debug(
-            f"Visual servo: angle_offset={self.buoy_angle_offset:.1f}°, "
+        
+        self.node.get_logger().info(
+            f"Rudder update: angle_offset={self.buoy_angle_offset:.1f}°, "
             f"rudder={rudder_angle:.1f}°, distance={self.buoy_distance:.1f}m"
         )
 
     def _maintain_downwind_course(self):
         """Maintain downwind course while searching"""
-        # Set sail for downwind
-        sail_msg = Float32()
-        sail_msg.data = 90.0  # Full out for downwind
-        self.sail_publisher.publish(sail_msg)
+        # Update sail if needed (time-based or wind change)
+        if self.should_update_sail():
+            sail_msg = Float32()
+            sail_msg.data = 90.0  # Full out for downwind
+            self.sail_publisher.publish(sail_msg)
+            self.node.get_logger().info("Sail updated for downwind course")
 
-        # Keep rudder centered while searching
-        rudder_msg = Float32()
-        rudder_msg.data = 0.0
-        self.rudder_publisher.publish(rudder_msg)
+        # Only update rudder at specified interval
+        if self.should_update_rudder():
+            # Get delayed position for navigation calculations
+            delayed_pos = self.get_delayed_position()
+            current_pos = self.get_current_position()
+            
+            # Keep rudder centered while searching
+            rudder_msg = Float32()
+            rudder_msg.data = 0.0
+            self.rudder_publisher.publish(rudder_msg)
+            self.node.get_logger().info("Rudder centered for downwind search")
 
     def _point_upwind(self):
         """Point the boat upwind after hitting buoy"""
         # Get current wind direction
         wind_dir = self.get_wind_direction()
 
-        # Set sail for close-hauled upwind sailing
-        sail_msg = Float32()
-        sail_msg.data = 15.0  # Close-hauled sail angle
-        self.sail_publisher.publish(sail_msg)
+        # Update sail if needed
+        if self.should_update_sail():
+            # Set sail for close-hauled upwind sailing
+            sail_msg = Float32()
+            sail_msg.data = 15.0  # Close-hauled sail angle
+            self.sail_publisher.publish(sail_msg)
+            self.node.get_logger().info(f"Sail set for upwind (wind at {wind_dir}°)")
 
-        # Use a moderate rudder angle to initiate turn to upwind
-        # In a full implementation, you'd calculate based on current heading vs wind
-        rudder_msg = Float32()
-        rudder_msg.data = 30.0  # Initial turn to port (adjust based on wind side)
-        self.rudder_publisher.publish(rudder_msg)
-
-        self.node.get_logger().info(f"Pointing upwind after buoy hit (wind at {wind_dir}°)")
+        # Update rudder at specified interval
+        if self.should_update_rudder():
+            # Get delayed position for heading calculations
+            delayed_pos = self.get_delayed_position()
+            current_pos = self.get_current_position()
+            
+            # Use a moderate rudder angle to maintain upwind heading
+            # In a full implementation, you'd calculate based on current heading vs wind
+            rudder_msg = Float32()
+            rudder_msg.data = 30.0  # Initial turn to port (adjust based on wind side)
+            self.rudder_publisher.publish(rudder_msg)
+            self.node.get_logger().info("Rudder set for upwind pointing")
 
     def _handle_buoy_hit(self):
         """Handle actions when buoy is hit"""
@@ -649,7 +760,8 @@ class SearchControl(EventControl):
         self.buoy_distance = float('inf')
         self.node.get_logger().info("Search state reset")
 
-    def configure_search(self, hit_threshold: float = None, rudder_gain: float = None, angle_tolerance: float = None):
+    def configure_search(self, hit_threshold: float = None, rudder_gain: float = None, angle_tolerance: float = None,
+                        rudder_interval: float = None, sail_interval: float = None):
         """Configure search parameters"""
         if hit_threshold is not None:
             self.hit_distance_threshold = hit_threshold
@@ -662,6 +774,14 @@ class SearchControl(EventControl):
         if angle_tolerance is not None:
             self.angle_tolerance = angle_tolerance
             self.node.get_logger().info(f"Angle tolerance set to {angle_tolerance}°")
+            
+        if rudder_interval is not None:
+            self.rudder_update_interval = rudder_interval
+            self.node.get_logger().info(f"Rudder update interval set to {rudder_interval}s")
+            
+        if sail_interval is not None:
+            self.sail_update_interval = sail_interval
+            self.node.get_logger().info(f"Sail update interval set to {sail_interval}s")
 
     def get_search_status(self) -> dict:
         """Get current search status"""
