@@ -503,9 +503,79 @@ class DeveloperControl(EventControl):
     def __init__(self, waypoints: List[Waypoint], node: Node, event_type: str): # Added event_type
         super().__init__(waypoints, node, event_type) # Pass event_type
         self.node.get_logger().info(f"DeveloperControl initialized for event: {event_type}")
+        
+        # RC/Autonomous mode switching state
+        self.previous_mode = None
+        self.autonomous_restart_timer = None
+        self.course_reset_pending = False
+        self.autonomous_enable_time = None
+        
+        # Publishers for direct control
+        self.rudder_publisher = node.create_publisher(
+            Float32,
+            'rudder/command',
+            10
+        )
+        self.sail_publisher = node.create_publisher(
+            Float32,
+            'sail/angle',
+            10
+        )
+
+    def handle_rc(self):
+        """Handle RC mode - zero controls and reset course"""
+        self.node.get_logger().info("DeveloperControl: Entering RC mode")
+        
+        # Zero rudder and sail
+        self._zero_controls()
+        
+        # Reset course
+        self._reset_course()
+        
+        # Disable autonomous navigation
+        self.disable_autonomous_navigation()
+        
+        # Cancel any pending autonomous restart
+        if self.autonomous_restart_timer:
+            self.autonomous_restart_timer.cancel()
+            self.autonomous_restart_timer = None
+        
+        self.previous_mode = ControlMode.RC
 
     def handle_autonomous(self):
         """developer testing autonomous control"""
+        # Check if we're transitioning from RC to autonomous
+        if self.previous_mode == ControlMode.RC:
+            self.node.get_logger().info("DeveloperControl: Transitioning from RC to Autonomous")
+            
+            # Zero controls immediately
+            self._zero_controls()
+            
+            # Set up 10-second delay before restarting course
+            self.course_reset_pending = True
+            self.autonomous_enable_time = self.node.get_clock().now()
+            
+            # Store the previous mode
+            self.previous_mode = ControlMode.AUTONOMOUS
+            
+            # Wait before enabling navigation
+            return
+        
+        # Check if we're waiting for the delay period
+        if self.course_reset_pending and self.autonomous_enable_time:
+            elapsed = (self.node.get_clock().now() - self.autonomous_enable_time).nanoseconds / 1e9
+            if elapsed < 10.0:
+                remaining = 10.0 - elapsed
+                self.node.get_logger().info(f"DeveloperControl: Waiting {remaining:.1f}s before starting autonomous...")
+                return
+            else:
+                # Delay period has passed, reset course and start
+                self.node.get_logger().info("DeveloperControl: Starting autonomous navigation after delay")
+                self._reset_course()
+                self.course_reset_pending = False
+                self.autonomous_enable_time = None
+        
+        # Normal autonomous operation
         self.node.get_logger().info("DeveloperControl: Handling autonomous...")
         # Get next waypoint. _gps_callback should keep current_waypoint_index updated.
         next_wp = self.get_next_waypoint()
@@ -521,6 +591,36 @@ class DeveloperControl(EventControl):
             self.node.get_logger().warning("DeveloperControl: No waypoint available for navigation or sequence complete.")
             # self.disable_autonomous_navigation()
             self.navigation_enabled_by_event_control = False
+            
+        self.previous_mode = ControlMode.AUTONOMOUS
+
+    def _zero_controls(self):
+        """Zero rudder and sail controls"""
+        self.node.get_logger().info("DeveloperControl: Zeroing rudder and sail")
+        
+        # Zero rudder
+        rudder_msg = Float32()
+        rudder_msg.data = 0.0
+        self.rudder_publisher.publish(rudder_msg)
+        
+        # Zero sail (0 degrees = fully in)
+        sail_msg = Float32()
+        sail_msg.data = 0.0
+        self.sail_publisher.publish(sail_msg)
+
+    def _reset_course(self):
+        """Reset the course to start from the beginning"""
+        self.node.get_logger().info("DeveloperControl: Resetting course")
+        
+        # Reset waypoint index to start
+        self.current_waypoint_index = 0
+        
+        # Reset all waypoint passed counts
+        for waypoint in self.waypoints:
+            waypoint.n_passed = 0
+            
+        # Clear any navigation state
+        self.navigation_enabled_by_event_control = False
 
 class SearchControl(EventControl):
     def __init__(self, waypoints: List[Waypoint], node: Node, event_type: str):
