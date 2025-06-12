@@ -59,6 +59,18 @@ class E(Event):
             Waypoint(12.34, 56.78),
             Waypoint(13.45, 57.89),
             Waypoint(14.56, 58.90),
+            Waypoint(12.34, 56.78),
+            Waypoint(12.34, 56.78),
+            Waypoint(13.45, 57.89),
+            Waypoint(14.56, 58.90),
+            Waypoint(12.34, 56.78),
+            Waypoint(12.34, 56.78),
+            Waypoint(13.45, 57.89),
+            Waypoint(14.56, 58.90),
+            Waypoint(12.34, 56.78),
+            Waypoint(12.34, 56.78),
+            Waypoint(13.45, 57.89),
+            Waypoint(14.56, 58.90),
             Waypoint(12.34, 56.78)
         ]
         boat.state.current_waypoint = boat.waypoints[0]
