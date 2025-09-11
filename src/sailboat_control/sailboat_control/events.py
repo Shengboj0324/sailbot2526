@@ -55,15 +55,7 @@ class E(Event):
         boat.state.autonomous_enabled = True
         print("autonomous system initialized for endurance")
 
-        boat.waypoints = [ # MAKE THIS 16 NOT 4 LATER
-            Waypoint(12.34, 56.78),
-            Waypoint(13.45, 57.89),
-            Waypoint(14.56, 58.90),
-            Waypoint(12.34, 56.78),
-            Waypoint(12.34, 56.78),
-            Waypoint(13.45, 57.89),
-            Waypoint(14.56, 58.90),
-            Waypoint(12.34, 56.78),
+        boat.waypoints = [
             Waypoint(12.34, 56.78),
             Waypoint(13.45, 57.89),
             Waypoint(14.56, 58.90),

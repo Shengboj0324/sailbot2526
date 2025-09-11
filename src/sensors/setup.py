@@ -15,7 +15,7 @@ setup(
     zip_safe=True,
     maintainer='your_name',
     maintainer_email='your_email@example.com',
-    description='Sensor interfaces package for sailbot2425',
+    description='Sensor interfaces package for sailbot2526',
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={

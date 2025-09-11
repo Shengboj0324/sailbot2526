@@ -3,7 +3,7 @@
 <package format="3">
   <name>sensors</name>
   <version>0.0.1</version>
-  <description>Sensor interfaces package for sailbot2425</description>
+  <description>Sensor interfaces package for sailbot2526</description>
   <maintainer email="your_email@example.com">your_name</maintainer>
   <license>TODO: License declaration</license>
 
