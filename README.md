@@ -1,4 +1,4 @@
-# Sailbot 2526 - Autonomous Sailing Robot Control System
+# Autonomous Sailing Robot Control System
 
 [![ROS2](https://img.shields.io/badge/ROS2-Jazzy-blue)](https://docs.ros.org/en/jazzy/index.html)
 [![Python](https://img.shields.io/badge/Python-3.12-green)](https://www.python.org/)
@@ -7,13 +7,12 @@
 
 ## Overview
 
-Sailbot 2526 is a comprehensive autonomous sailing robot control system built on ROS2 (Robot Operating System 2). The system is designed for autonomous sailing robotics competitions, providing advanced path planning, sensor integration, and autonomous decision-making capabilities for various sailing events.
+This is the 2025-2026 iteration of the Kehillah autonomous sailing robot control system built on ROS2 (Robot Operating System 2). The system is designed for the sailbot competition: https://www.sailbot.org/
 
 ## Key Features
 
 - **Multi-Event Support**: Fleet race, precision navigation, station keeping, endurance, payload, and search events
 - **Advanced Path Planning**: Fortran-optimized algorithms for high-performance navigation calculations
-- **Visual Servoing**: Camera-based buoy detection and approach for search events
 - **Sensor Integration**: GPS, wind sensors, rudder/winch control, and cellular communication
 - **Autonomous/RC Mode Switching**: Seamless transition between manual and autonomous control
 - **Global Wind Backup**: Reliable wind direction backup system for sensor failures
@@ -268,43 +267,3 @@ ros2 param set /sailboat_control global_wind_angle 270.0
 export ROS_LOG_LEVEL=DEBUG
 ros2 run sailboat_control state_management_node --ros-args -p event_type:=search
 ```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Code Style
-- Follow PEP 8 for Python code
-- Use meaningful variable names and comments
-- Test all changes with the provided test scripts
-- Update documentation for new features
-
-## License
-
-This project is licensed under the TODO License - see the [LICENSE](LICENSE) file for details.
-
-## Competition Integration
-
-This system is designed for autonomous sailing robotics competitions including:
-- **SailBot** collegiate autonomous sailing competitions
-- **World Robotic Sailing Championship (WRSC)**
-- **International Robotic Sailing Conference (IRSC)** events
-
-### Competition Rules Compliance
-- Adheres to standard autonomous sailing competition protocols
-- Implements required safety features and manual override capabilities
-- Supports competition-standard waypoint navigation and event types
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/your-username/sailbot2526/issues)
-- **Documentation**: [Project Wiki](https://github.com/your-username/sailbot2526/wiki)
-- **Discussions**: [GitHub Discussions](https://github.com/your-username/sailbot2526/discussions)
-
----
-
-**Built with care for autonomous sailing robotics**
