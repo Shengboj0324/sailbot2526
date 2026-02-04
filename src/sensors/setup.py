@@ -27,6 +27,7 @@ setup(
             'winch_control = sensors.winch_control_node:main',
             'wind_sensor = sensors.wind_sensor_node:main',
             'wind_smoother = sensors.wind_smoother:main',
+            'imu_node = sensors.imu_node:main',
         ],
     },
 )

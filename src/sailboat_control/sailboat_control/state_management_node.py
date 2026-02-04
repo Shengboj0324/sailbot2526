@@ -55,10 +55,10 @@ class StateManagementNode(Node):
         self.declare_parameter('use_global_wind', False)
         self.declare_parameter('wind_sensor_timeout', 5.0)
         
-        # Get control timing parameters
-        self.declare_parameter('rudder_update_interval', 3.0)
-        self.declare_parameter('sail_update_interval', 10.0)
-        self.declare_parameter('gps_buffer_delay', 3.0)
+        # Get control timing parameters (Phase 2: Latency Reduction)
+        self.declare_parameter('rudder_update_interval', 0.5)  # Reduced from 3.0s
+        self.declare_parameter('sail_update_interval', 1.0)    # Reduced from 10.0s
+        self.declare_parameter('gps_buffer_delay', 0.1)        # Reduced from 3.0s
         
         global_wind_angle = self.get_parameter('global_wind_angle').value
         use_global_wind = self.get_parameter('use_global_wind').value

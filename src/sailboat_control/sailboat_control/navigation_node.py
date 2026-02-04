@@ -10,9 +10,15 @@ from path_planning.path_planning.leg import Leg
 from path_planning.path_planning.waypoint import Waypoint
 from typing import List, Tuple, Optional
 
+try:
+    from sailboat_control.adaptive_pid import AdaptivePID, calculate_heading_error
+    ADAPTIVE_PID_AVAILABLE = True
+except ImportError:
+    ADAPTIVE_PID_AVAILABLE = False
+
 
 class PIDController:
-    """Simple PID controller for rudder control"""
+    """Simple PID controller for rudder control (fallback)"""
     def __init__(self, Kp, Ki, Kd):
         self.Kp = Kp
         self.Ki = Ki
@@ -53,13 +59,16 @@ class NavigationNode(Node):
         super().__init__('navigation_node')
 
         # Navigation parameters
-        self.declare_parameter('rudder_update_rate', 1.0)  # Hz
+        self.declare_parameter('rudder_update_rate', 2.0)  # Hz (increased from 1.0)
         self.declare_parameter('sail_update_rate', 1.0)    # Hz
 
-        # PID parameters - these are from your friend's implementation
+        # PID parameters
         self.declare_parameter('rudder_kp', 70.0)
         self.declare_parameter('rudder_ki', 0.5)
         self.declare_parameter('rudder_kd', 35.0)
+        self.declare_parameter('use_adaptive_pid', True)
+        self.declare_parameter('use_gain_scheduling', True)
+        self.declare_parameter('use_feedforward', True)
 
         self.declare_parameter('waypoint_threshold', 5.0)   # meters
 
@@ -72,9 +81,17 @@ class NavigationNode(Node):
         kp = self.get_parameter('rudder_kp').value
         ki = self.get_parameter('rudder_ki').value
         kd = self.get_parameter('rudder_kd').value
+        self.use_adaptive_pid = self.get_parameter('use_adaptive_pid').value
+        self.use_gain_scheduling = self.get_parameter('use_gain_scheduling').value
+        self.use_feedforward = self.get_parameter('use_feedforward').value
 
         # Initialize PID controller
-        self.rudder_pid = PIDController(Kp=kp, Ki=ki, Kd=kd)
+        if ADAPTIVE_PID_AVAILABLE and self.use_adaptive_pid:
+            self.rudder_pid = AdaptivePID(Kp_base=kp, Ki_base=ki, Kd_base=kd)
+            self.get_logger().info('Using Adaptive PID controller')
+        else:
+            self.rudder_pid = PIDController(Kp=kp, Ki=ki, Kd=kd)
+            self.get_logger().info('Using standard PID controller')
 
         # Navigation state
         self.current_lat = 0.0
@@ -463,28 +480,40 @@ class NavigationNode(Node):
         # Calculate heading error
         heading_error = self.print_angle(target_heading - self.current_heading)
 
-        # Scale error to [-1, 1] range for PID controller
-        heading_error_scaled = heading_error / 180.0
-
-        # Get time step (1.0 second for 1Hz update rate)
+        # Get time step
         dt = 1.0 / self.rudder_update_rate
 
         # Update PID controller
-        rudder_correction = self.rudder_pid.update(heading_error_scaled, dt)
+        if ADAPTIVE_PID_AVAILABLE and self.use_adaptive_pid:
+            # Use adaptive PID with gain scheduling and feedforward
+            rudder_correction, terms = self.rudder_pid.update(
+                heading_error, dt, self.current_speed,
+                self.use_gain_scheduling, self.use_feedforward
+            )
 
-        # Apply limits and invert direction (matching friend's implementation)
-        rudder_angle = max(min(rudder_correction, 20), -20) * -1
+            # Detailed logging with PID terms
+            self.get_logger().info(
+                f"Adaptive PID: target={target_heading:.1f}°, current={self.current_heading:.1f}°, "
+                f"error={heading_error:.1f}°, speed={self.current_speed:.2f} m/s, "
+                f"P={terms['P']:.2f}, I={terms['I']:.2f}, D={terms['D']:.2f}, FF={terms['FF']:.2f}, "
+                f"Kp={terms['Kp']:.1f}, rudder={rudder_correction:.1f}°"
+            )
+        else:
+            # Use standard PID
+            heading_error_scaled = heading_error / 180.0
+            rudder_correction = self.rudder_pid.update(heading_error_scaled, dt)
+            rudder_correction = max(min(rudder_correction, 20), -20) * -1
 
-        # Debug logging
-        self.get_logger().info(
-            f"PID Rudder: target={target_heading:.1f}°, "
-            f"current={self.current_heading:.1f}°, "
-            f"error={heading_error:.1f}°, "
-            f"scaled_error={heading_error_scaled:.3f}, "
-            f"rudder={rudder_angle:.1f}°"
-        )
+            # Standard logging
+            self.get_logger().info(
+                f"PID Rudder: target={target_heading:.1f}°, "
+                f"current={self.current_heading:.1f}°, "
+                f"error={heading_error:.1f}°, "
+                f"scaled_error={heading_error_scaled:.3f}, "
+                f"rudder={rudder_correction:.1f}°"
+            )
 
-        return rudder_angle
+        return rudder_correction
 
     def set_rudder_angle(self, angle: float):
         """Send rudder angle command"""
