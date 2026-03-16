@@ -1,0 +1,176 @@
+{
+  "summary": {
+    "total_tests": 40,
+    "passed": 7,
+    "failed": 33,
+    "success_rate": 17.5,
+    "duration_seconds": 0.421764,
+    "timestamp": "2026-03-16T08:53:59.509806"
+  },
+  "test_suites": [
+    {
+      "name": "Comprehensive Regression Tests",
+      "tests_run": 26,
+      "passed": 7,
+      "failed": 3,
+      "errors": [
+        {
+          "test": "test_covariance_positive_definite (test_comprehensive_regression.TestExtendedKalmanFilterHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 164, in setUp\n    from sailboat_control.state_estimator import ExtendedKalmanFilter\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/state_estimator.py\", line 7, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_gps_fusion_accuracy (test_comprehensive_regression.TestExtendedKalmanFilterHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 164, in setUp\n    from sailboat_control.state_estimator import ExtendedKalmanFilter\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/state_estimator.py\", line 7, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_imu_heading_fusion_accuracy (test_comprehensive_regression.TestExtendedKalmanFilterHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 164, in setUp\n    from sailboat_control.state_estimator import ExtendedKalmanFilter\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/state_estimator.py\", line 7, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_initial_state_zero (test_comprehensive_regression.TestExtendedKalmanFilterHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 164, in setUp\n    from sailboat_control.state_estimator import ExtendedKalmanFilter\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/state_estimator.py\", line 7, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_prediction_step_stability (test_comprehensive_regression.TestExtendedKalmanFilterHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 164, in setUp\n    from sailboat_control.state_estimator import ExtendedKalmanFilter\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/state_estimator.py\", line 7, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_velocity_estimation_accuracy (test_comprehensive_regression.TestExtendedKalmanFilterHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 164, in setUp\n    from sailboat_control.state_estimator import ExtendedKalmanFilter\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/state_estimator.py\", line 7, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_apparent_wind_calculation_accuracy (test_comprehensive_regression.TestOptimalSailControllerHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 263, in setUp\n    from sailboat_control.optimal_sail_controller import OptimalSailController\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/optimal_sail_controller.py\", line 6, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_depowering_logic_heel_threshold (test_comprehensive_regression.TestOptimalSailControllerHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 263, in setUp\n    from sailboat_control.optimal_sail_controller import OptimalSailController\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/optimal_sail_controller.py\", line 6, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_polar_interpolation_boundaries (test_comprehensive_regression.TestOptimalSailControllerHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 263, in setUp\n    from sailboat_control.optimal_sail_controller import OptimalSailController\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/optimal_sail_controller.py\", line 6, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_rate_limiting_prevents_shock_loads (test_comprehensive_regression.TestOptimalSailControllerHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 263, in setUp\n    from sailboat_control.optimal_sail_controller import OptimalSailController\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/optimal_sail_controller.py\", line 6, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_sail_angle_physical_limits (test_comprehensive_regression.TestOptimalSailControllerHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 263, in setUp\n    from sailboat_control.optimal_sail_controller import OptimalSailController\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/optimal_sail_controller.py\", line 6, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_circular_statistics_wraparound (test_comprehensive_regression.TestWindFilterHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 363, in setUp\n    from sailboat_control.wind_smoother import AdaptiveWindKalmanFilter\nModuleNotFoundError: No module named 'sailboat_control.wind_smoother'\n"
+        },
+        {
+          "test": "test_gust_detection_persistence (test_comprehensive_regression.TestWindFilterHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 363, in setUp\n    from sailboat_control.wind_smoother import AdaptiveWindKalmanFilter\nModuleNotFoundError: No module named 'sailboat_control.wind_smoother'\n"
+        },
+        {
+          "test": "test_gust_detection_threshold (test_comprehensive_regression.TestWindFilterHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 363, in setUp\n    from sailboat_control.wind_smoother import AdaptiveWindKalmanFilter\nModuleNotFoundError: No module named 'sailboat_control.wind_smoother'\n"
+        },
+        {
+          "test": "test_innovation_variance_adaptation (test_comprehensive_regression.TestWindFilterHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 363, in setUp\n    from sailboat_control.wind_smoother import AdaptiveWindKalmanFilter\nModuleNotFoundError: No module named 'sailboat_control.wind_smoother'\n"
+        },
+        {
+          "test": "test_steady_wind_low_pass_filtering (test_comprehensive_regression.TestWindFilterHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 363, in setUp\n    from sailboat_control.wind_smoother import AdaptiveWindKalmanFilter\nModuleNotFoundError: No module named 'sailboat_control.wind_smoother'\n"
+        }
+      ],
+      "success_rate": 26.923076923076923,
+      "timestamp": "2026-03-16T08:53:59.495827",
+      "failures": [
+        {
+          "test": "test_gain_scheduling_speed_range (test_comprehensive_regression.TestAdaptivePIDHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 56, in test_gain_scheduling_speed_range\n    self.assertLess(outputs[i], outputs[i+1],\nAssertionError: 21.0 not less than 21.0 : Output should increase with speed: 0.5 vs 1.0\n"
+        },
+        {
+          "test": "test_heading_error_wraparound (test_comprehensive_regression.TestAdaptivePIDHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 122, in test_heading_error_wraparound\n    self.assertAlmostEqual(error, expected, places=1,\nAssertionError: -180 != 180 within 1 places (360 difference) : Heading error wrong: 0\u00b0 - 180\u00b0 = -180\u00b0 (expected 180\u00b0)\n"
+        },
+        {
+          "test": "test_integral_windup_protection (test_comprehensive_regression.TestAdaptivePIDHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_comprehensive_regression.py\", line 69, in test_integral_windup_protection\n    self.assertLessEqual(abs(self.pid.integral), self.pid.integral_max,\nAssertionError: 7028.07558202668 not less than or equal to 100.0 : Integral term exceeded maximum\n"
+        }
+      ]
+    },
+    {
+      "name": "Position Tracking Tests",
+      "tests_run": 6,
+      "passed": 0,
+      "failed": 0,
+      "errors": [
+        {
+          "test": "test_circular_path_tracking_accuracy (test_position_tracking.TestPositionTrackingHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_position_tracking.py\", line 101, in setUp\n    from sailboat_control.state_estimator import ExtendedKalmanFilter\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/state_estimator.py\", line 7, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_gps_dropout_recovery (test_position_tracking.TestPositionTrackingHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_position_tracking.py\", line 101, in setUp\n    from sailboat_control.state_estimator import ExtendedKalmanFilter\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/state_estimator.py\", line 7, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_straight_line_tracking_accuracy (test_position_tracking.TestPositionTrackingHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_position_tracking.py\", line 101, in setUp\n    from sailboat_control.state_estimator import ExtendedKalmanFilter\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/state_estimator.py\", line 7, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_zigzag_maneuver_tracking (test_position_tracking.TestPositionTrackingHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_position_tracking.py\", line 101, in setUp\n    from sailboat_control.state_estimator import ExtendedKalmanFilter\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/state_estimator.py\", line 7, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_direct_waypoint_approach_accuracy (test_position_tracking.TestWaypointNavigationHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_position_tracking.py\", line 298, in setUp\n    from path_planning.path_planning.leg import Leg\nModuleNotFoundError: No module named 'path_planning.path_planning'\n"
+        },
+        {
+          "test": "test_upwind_tacking_waypoint_accuracy (test_position_tracking.TestWaypointNavigationHarsh)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_position_tracking.py\", line 298, in setUp\n    from path_planning.path_planning.leg import Leg\nModuleNotFoundError: No module named 'path_planning.path_planning'\n"
+        }
+      ],
+      "success_rate": 0.0,
+      "timestamp": "2026-03-16T08:53:59.502229"
+    },
+    {
+      "name": "Sail Angle Comprehensive Tests",
+      "tests_run": 8,
+      "passed": 0,
+      "failed": 0,
+      "errors": [
+        {
+          "test": "test_depowering_heel_angle_threshold (test_sail_angle_comprehensive.TestSailAngleComprehensive)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_sail_angle_comprehensive.py\", line 71, in setUp\n    from sailboat_control.optimal_sail_controller import OptimalSailController\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/optimal_sail_controller.py\", line 6, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_sail_angle_downwind_optimization (test_sail_angle_comprehensive.TestSailAngleComprehensive)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_sail_angle_comprehensive.py\", line 71, in setUp\n    from sailboat_control.optimal_sail_controller import OptimalSailController\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/optimal_sail_controller.py\", line 6, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_sail_angle_extreme_conditions (test_sail_angle_comprehensive.TestSailAngleComprehensive)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_sail_angle_comprehensive.py\", line 71, in setUp\n    from sailboat_control.optimal_sail_controller import OptimalSailController\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/optimal_sail_controller.py\", line 6, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_sail_angle_full_wind_spectrum (test_sail_angle_comprehensive.TestSailAngleComprehensive)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_sail_angle_comprehensive.py\", line 71, in setUp\n    from sailboat_control.optimal_sail_controller import OptimalSailController\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/optimal_sail_controller.py\", line 6, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_sail_angle_rate_limiting (test_sail_angle_comprehensive.TestSailAngleComprehensive)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_sail_angle_comprehensive.py\", line 71, in setUp\n    from sailboat_control.optimal_sail_controller import OptimalSailController\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/optimal_sail_controller.py\", line 6, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_sail_angle_speed_sensitivity (test_sail_angle_comprehensive.TestSailAngleComprehensive)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_sail_angle_comprehensive.py\", line 71, in setUp\n    from sailboat_control.optimal_sail_controller import OptimalSailController\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/optimal_sail_controller.py\", line 6, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_sail_angle_upwind_optimization (test_sail_angle_comprehensive.TestSailAngleComprehensive)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_sail_angle_comprehensive.py\", line 71, in setUp\n    from sailboat_control.optimal_sail_controller import OptimalSailController\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/optimal_sail_controller.py\", line 6, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        },
+        {
+          "test": "test_sail_angle_wind_speed_sensitivity (test_sail_angle_comprehensive.TestSailAngleComprehensive)",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/test_sail_angle_comprehensive.py\", line 71, in setUp\n    from sailboat_control.optimal_sail_controller import OptimalSailController\n  File \"/Users/jiangshengbo/Desktop/sailbot2526/tests/../src/sailboat_control/sailboat_control/optimal_sail_controller.py\", line 6, in <module>\n    import rclpy\nModuleNotFoundError: No module named 'rclpy'\n"
+        }
+      ],
+      "success_rate": 0.0,
+      "timestamp": "2026-03-16T08:53:59.509347"
+    }
+  ]
+}
