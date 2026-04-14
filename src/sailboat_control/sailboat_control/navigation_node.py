@@ -484,17 +484,57 @@ class NavigationNode(Node):
         return self.active_course
 
     def path_planning_callback(self):
-        """
-        Path planning timer callback - runs at slower rate
-        Handles checking if we need to recalculate path
-        """
+        """Path planning timer — wind-shift detection + drift update + replan."""
         if not self.navigation_enabled:
             return
 
-        # Check for significant wind direction changes
-        # This would be a good spot to recalculate path if wind shifts
+        # ── Drift estimator update (Phase-5 UKF-aware) ───────────────
+        if self.drift_estimator is not None and self.ukf is not None:
+            # Use UKF body-frame velocities for superior current estimation
+            ukf_heading = self.ukf.x[2]
+            ukf_surge   = self.ukf.x[3]
+            ukf_sway    = self.ukf.x[4]
+            # GPS ground-track velocity approximation
+            gps_speed = self.current_speed
+            heading_rad = math.radians(self.current_heading)
+            gps_vx = gps_speed * math.sin(heading_rad)
+            gps_vy = gps_speed * math.cos(heading_rad)
+            self.drift_estimator.update_from_ukf(
+                gps_vx, gps_vy, ukf_heading, ukf_surge, ukf_sway
+            )
+        elif self.drift_estimator is not None:
+            # Fallback: classic method
+            heading_rad = math.radians(self.current_heading)
+            gps_vx = self.current_speed * math.sin(heading_rad)
+            gps_vy = self.current_speed * math.cos(heading_rad)
+            self.drift_estimator.update(
+                gps_vx, gps_vy, self.current_heading, self.current_speed
+            )
 
-        # For now, just publish status updates
+        # ── Wind-shift detection + automatic replan ──────────────────
+        wind_shift_threshold = 30.0  # degrees
+        if not hasattr(self, '_last_plan_wind'):
+            self._last_plan_wind = self.wind_direction
+
+        wind_delta = abs(self.wind_direction - self._last_plan_wind)
+        if wind_delta > 180:
+            wind_delta = 360 - wind_delta
+
+        if wind_delta > wind_shift_threshold and self.active_course:
+            self.get_logger().warn(
+                f"Wind shift detected: {self._last_plan_wind:.0f}° → "
+                f"{self.wind_direction:.0f}° (Δ={wind_delta:.0f}°) — replanning"
+            )
+            target = self.get_current_target()
+            if target:
+                self.calculate_path(
+                    (self.current_lat, self.current_lon), target
+                )
+                if self.mpc is not None:
+                    self.mpc.reset()
+            self._last_plan_wind = self.wind_direction
+
+        # ── Publish status ───────────────────────────────────────────
         self.publish_status()
 
     def calculate_apparent_wind_angle(self) -> float:
@@ -604,6 +644,15 @@ class NavigationNode(Node):
 
         target_heading = self.calculate_heading_to_target(target)
 
+        # ── Drift + leeway compensation (Phase-5) ────────────────────
+        if self.drift_estimator is not None:
+            leeway = 0.0
+            if self.ukf is not None:
+                leeway = self.ukf.get_leeway_deg()
+            target_heading = self.drift_estimator.get_leeway_correction(
+                target_heading, leeway, max(self.current_speed, 0.5)
+            )
+
         if self.mpc is not None:
             # ── Phase-5: Model Predictive Control ────────────────────
             yaw_rate_dps = math.degrees(self.yaw_rate)
@@ -708,12 +757,19 @@ class NavigationNode(Node):
 
         return rudder_correction
 
-    def set_rudder_angle(self, angle: float):
-        """Send rudder angle command"""
-        # Clamp angle to reasonable range
-        angle = max(-45.0, min(45.0, angle))
+    # ── Rudder servo constants (must match util/rudder_a.py) ────────
+    RUDDER_MIN = -21.0
+    RUDDER_MAX =  21.0
+    NEUTRAL_SERVO_ANGLE = 55   # servo degrees at rudder=0°
 
-        # Create and publish message
+    def set_rudder_angle(self, angle: float):
+        """Send rudder angle command, clamped to hardware limits.
+
+        The MPC already enforces [-21, 21]° but we double-check here
+        as a safety layer before the message reaches the Arduino bridge.
+        """
+        angle = max(self.RUDDER_MIN, min(self.RUDDER_MAX, angle))
+
         msg = Float32()
         msg.data = float(angle)
         self.rudder_publisher.publish(msg)
