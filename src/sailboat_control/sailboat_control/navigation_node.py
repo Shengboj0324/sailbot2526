@@ -10,11 +10,37 @@ from path_planning.path_planning.leg import Leg
 from path_planning.path_planning.waypoint import Waypoint
 from typing import List, Tuple, Optional
 
+# ── Phase-5 modules (UKF / MPC / VPP) with graceful fallback ────────
+try:
+    from sailboat_control.ukf_state_estimator import SquareRootUKF
+    UKF_AVAILABLE = True
+except ImportError:
+    UKF_AVAILABLE = False
+
+try:
+    from sailboat_control.mpc_controller import MPCSteering
+    MPC_AVAILABLE = True
+except ImportError:
+    MPC_AVAILABLE = False
+
+try:
+    from sailboat_control.vpp_sail_optimizer import VPPSailOptimizer
+    VPP_AVAILABLE = True
+except ImportError:
+    VPP_AVAILABLE = False
+
+# ── Phase-4 fallback modules ────────────────────────────────────────
 try:
     from sailboat_control.adaptive_pid import AdaptivePID, calculate_heading_error
     ADAPTIVE_PID_AVAILABLE = True
 except ImportError:
     ADAPTIVE_PID_AVAILABLE = False
+
+try:
+    from sailboat_control.drift_estimator import DriftEstimator
+    DRIFT_AVAILABLE = True
+except ImportError:
+    DRIFT_AVAILABLE = False
 
 
 class PIDController:
@@ -59,10 +85,10 @@ class NavigationNode(Node):
         super().__init__('navigation_node')
 
         # Navigation parameters
-        self.declare_parameter('rudder_update_rate', 2.0)  # Hz (increased from 1.0)
+        self.declare_parameter('rudder_update_rate', 2.0)  # Hz
         self.declare_parameter('sail_update_rate', 1.0)    # Hz
 
-        # PID parameters
+        # PID parameters (Phase-4 fallback)
         self.declare_parameter('rudder_kp', 70.0)
         self.declare_parameter('rudder_ki', 0.5)
         self.declare_parameter('rudder_kd', 35.0)
@@ -70,12 +96,22 @@ class NavigationNode(Node):
         self.declare_parameter('use_gain_scheduling', True)
         self.declare_parameter('use_feedforward', True)
 
+        # Phase-5 control architecture selector
+        self.declare_parameter('use_ukf', True)
+        self.declare_parameter('use_mpc', True)
+        self.declare_parameter('use_vpp', True)
+
         self.declare_parameter('waypoint_threshold', 5.0)   # meters
 
         # Get parameter values
         self.rudder_update_rate = self.get_parameter('rudder_update_rate').value
         self.sail_update_rate = self.get_parameter('sail_update_rate').value
         self.waypoint_threshold = self.get_parameter('waypoint_threshold').value
+
+        # Phase-5 architecture flags
+        self.use_ukf = self.get_parameter('use_ukf').value and UKF_AVAILABLE
+        self.use_mpc = self.get_parameter('use_mpc').value and MPC_AVAILABLE
+        self.use_vpp = self.get_parameter('use_vpp').value and VPP_AVAILABLE
 
         # Get PID parameters
         kp = self.get_parameter('rudder_kp').value
@@ -85,13 +121,46 @@ class NavigationNode(Node):
         self.use_gain_scheduling = self.get_parameter('use_gain_scheduling').value
         self.use_feedforward = self.get_parameter('use_feedforward').value
 
-        # Initialize PID controller
+        # ── Phase-5: UKF state estimator ─────────────────────────────
+        if self.use_ukf:
+            self.ukf = SquareRootUKF()
+            self.get_logger().info('Phase-5: Square-Root UKF active (10-DOF, 6-DOF dynamics)')
+        else:
+            self.ukf = None
+
+        # ── Phase-5: MPC steering controller ─────────────────────────
+        if self.use_mpc:
+            self.mpc = MPCSteering(horizon=10, dt=1.0 / self.rudder_update_rate)
+            self.get_logger().info('Phase-5: MPC steering active (Nomoto, N=10)')
+        else:
+            self.mpc = None
+
+        # ── Phase-5: VPP sail optimizer ──────────────────────────────
+        if self.use_vpp:
+            self.vpp = VPPSailOptimizer()
+            self.get_logger().info('Phase-5: VPP sail optimizer active (aero/hydro equilibrium)')
+        else:
+            self.vpp = None
+
+        # ── Phase-4 fallback: Adaptive PID ───────────────────────────
         if ADAPTIVE_PID_AVAILABLE and self.use_adaptive_pid:
             self.rudder_pid = AdaptivePID(Kp_base=kp, Ki_base=ki, Kd_base=kd)
-            self.get_logger().info('Using Adaptive PID controller')
+            if not self.use_mpc:
+                self.get_logger().info('Using Adaptive PID controller (Phase-4)')
         else:
             self.rudder_pid = PIDController(Kp=kp, Ki=ki, Kd=kd)
-            self.get_logger().info('Using standard PID controller')
+            if not self.use_mpc:
+                self.get_logger().info('Using standard PID controller')
+
+        # ── Phase-3: Drift estimator ─────────────────────────────────
+        self.drift_estimator = DriftEstimator() if DRIFT_AVAILABLE else None
+
+        # Additional IMU state
+        self.imu_heading = 0.0    # degrees
+        self.heel_angle = 0.0     # degrees
+        self.roll_rate = 0.0      # rad/s
+        self.yaw_rate = 0.0       # rad/s (Phase-5: used by MPC)
+        self.wind_speed = 0.0     # m/s (Phase-5: used by VPP)
 
         # Navigation state
         self.current_lat = 0.0
@@ -198,7 +267,34 @@ class NavigationNode(Node):
             10
         )
 
-        self.get_logger().info("Navigation node initialized with PID controller")
+        # Phase-5: IMU subscriber for UKF fusion
+        self.imu_subscription = self.create_subscription(
+            String, 'imu/data', self.imu_callback, 10
+        )
+
+        # Phase-5: Wind speed subscriber for VPP
+        self.wind_speed_subscription = self.create_subscription(
+            Float32, 'wind/speed', self.wind_speed_callback, 10
+        )
+
+        # Phase-5: Heel angle subscriber
+        self.heel_subscription = self.create_subscription(
+            Float32, 'imu/heel', self.heel_callback, 10
+        )
+
+        # Phase-5 diagnostics publisher
+        self.diag_publisher = self.create_publisher(
+            String, 'navigation/phase5_diagnostics', 10
+        )
+
+        arch = []
+        if self.use_ukf:  arch.append('UKF')
+        if self.use_mpc:  arch.append('MPC')
+        if self.use_vpp:  arch.append('VPP')
+        self.get_logger().info(
+            f"Navigation node initialised — Phase-5 architecture: "
+            f"{'+'.join(arch) if arch else 'Phase-4 fallback'}"
+        )
 
     def gps_callback(self, msg: NavSatFix):
         """Handle GPS position updates and calculate heading directly from position changes"""
@@ -234,6 +330,19 @@ class NavigationNode(Node):
 
         self.gps_timestamp = timestamp
 
+        # ── Phase-5: Feed GPS into UKF ───────────────────────────────
+        if self.ukf is not None:
+            self.ukf.update_gps(msg.latitude, msg.longitude)
+            # Extract fused state from UKF
+            ukf_lat, ukf_lon = self.ukf.get_position()
+            if ukf_lat != 0.0 or ukf_lon != 0.0:
+                self.current_lat = ukf_lat
+                self.current_lon = ukf_lon
+            self.current_heading = self.ukf.get_heading_deg()
+            self.current_speed = self.ukf.get_speed()
+            self.heel_angle = self.ukf.get_heel_deg()
+            self.yaw_rate = self.ukf.get_yaw_rate()
+
         # If in autonomous mode, check if we've reached the target
         if self.navigation_enabled and self.active_course:
             self.check_waypoint_reached()
@@ -246,14 +355,55 @@ class NavigationNode(Node):
         """Handle wind direction updates"""
         self.wind_direction = msg.data
 
+    def wind_speed_callback(self, msg: Float32):
+        """Handle wind speed updates (Phase-5: feeds VPP)"""
+        self.wind_speed = msg.data
+        # Feed wind into UKF dynamics model
+        if self.ukf is not None:
+            self.ukf.wind_speed = msg.data
+            self.ukf.wind_angle = math.radians(self.wind_direction)
+
+    def heel_callback(self, msg: Float32):
+        """Handle heel angle updates from IMU"""
+        self.heel_angle = msg.data
+
+    def imu_callback(self, msg: String):
+        """Handle IMU data (JSON) — feeds UKF heading, heel, gyro."""
+        try:
+            data = json.loads(msg.data)
+            heading = data.get('heading', self.current_heading)
+            heel = data.get('heel', 0.0)
+            roll_rate = data.get('roll_rate', 0.0)
+            yaw_rate = data.get('yaw_rate', 0.0)
+
+            self.imu_heading = heading
+            self.roll_rate = roll_rate
+            self.yaw_rate = yaw_rate
+
+            if self.ukf is not None:
+                self.ukf.update_imu(
+                    math.radians(heading),
+                    math.radians(heel),
+                    roll_rate,
+                    yaw_rate
+                )
+                # Run prediction step at IMU rate
+                self.ukf.predict(0.02)  # ~50 Hz IMU assumption
+        except Exception as e:
+            self.get_logger().debug(f"IMU parse error: {e}")
+
     def command_callback(self, msg: Int32):
         """Handle navigation commands"""
         command = msg.data
 
         if command == 1:  # Enable autonomous navigation
             self.navigation_enabled = True
-            self.rudder_pid.reset()  # Reset PID controller when starting autonomous mode
-            self.get_logger().info("Autonomous navigation enabled")
+            self.rudder_pid.reset()
+            if self.mpc is not None:
+                self.mpc.reset()
+            if self.vpp is not None:
+                self.vpp.reset()
+            self.get_logger().info("Autonomous navigation enabled (Phase-5 controllers reset)")
         elif command == 0:  # Disable autonomous navigation
             self.navigation_enabled = False
             self.get_logger().info("Autonomous navigation disabled")
@@ -396,50 +546,93 @@ class NavigationNode(Node):
         return sail_angle
 
     def sail_control_callback(self):
-        """
-        Sail control timer callback - calculates and publishes optimal sail angle
-        """
+        """Sail control callback — uses VPP (Phase-5) or AOA formula (fallback)."""
         if not self.navigation_enabled:
             return
 
-        # Calculate optimal sail angle
-        optimal_sail_angle = self.calculate_sail_angle()
+        if self.vpp is not None:
+            # ── Phase-5: VPP dynamic sail optimisation ───────────────
+            target = self.get_current_target()
+            target_bearing = 0.0
+            if target:
+                target_bearing = self.calculate_heading_to_target(target)
 
-        # Create and publish message
-        msg = Float32()
-        msg.data = float(optimal_sail_angle)
-        self.sail_angle_publisher.publish(msg)
+            sail_deg, vmg, pred_speed, diag = self.vpp.optimize(
+                true_wind_speed=max(self.wind_speed, 0.5),
+                true_wind_angle_deg=self.wind_direction,
+                target_bearing_deg=target_bearing,
+                boat_speed_hint=max(self.current_speed, 0.5),
+                current_heel_deg=self.heel_angle
+            )
+            # Ensure Arduino-safe output [0, 88]
+            sail_deg = self.vpp.to_arduino_angle(sail_deg)
 
-        # Log sail angle calculation
-        self.get_logger().debug(
-            f"Sail angle calculation: apparent_wind={self.calculate_apparent_wind_angle():.1f}°, "
-            f"optimal_sail={optimal_sail_angle:.1f}°"
-        )
+            msg = Float32()
+            msg.data = float(sail_deg)
+            self.sail_angle_publisher.publish(msg)
+
+            self.get_logger().info(
+                f"VPP sail: {sail_deg:.1f}° | VMG={vmg:.2f} m/s | "
+                f"L/D={diag.get('best_lift_to_drag', 0):.1f} | "
+                f"heel={self.heel_angle:.1f}°"
+            )
+
+            # Publish Phase-5 diagnostics
+            diag_msg = String()
+            diag_msg.data = json.dumps({
+                'controller': 'VPP', 'sail_deg': sail_deg,
+                'vmg': vmg, 'predicted_speed': pred_speed, **diag
+            })
+            self.diag_publisher.publish(diag_msg)
+        else:
+            # ── Fallback: Phase-4 AOA formula ────────────────────────
+            optimal_sail_angle = self.calculate_sail_angle()
+            msg = Float32()
+            msg.data = float(optimal_sail_angle)
+            self.sail_angle_publisher.publish(msg)
 
     def rudder_control_callback(self):
-        """
-        Rudder control timer callback - runs at higher rate
-        Updates rudder angle based on current position and heading
-        """
+        """Rudder control callback — uses MPC (Phase-5) or PID (fallback)."""
         if not self.navigation_enabled:
             return
-            
         if not self.active_course:
             return
 
-        # Get current target waypoint
         target = self.get_current_target()
         if not target:
             return
 
-        # Calculate angle to target
         target_heading = self.calculate_heading_to_target(target)
 
-        # Calculate rudder angle using PID controller
-        rudder_angle = self.calculate_rudder_angle_pid(target_heading)
+        if self.mpc is not None:
+            # ── Phase-5: Model Predictive Control ────────────────────
+            yaw_rate_dps = math.degrees(self.yaw_rate)
+            rudder_deg, diag = self.mpc.compute(
+                heading_deg=self.current_heading,
+                yaw_rate_dps=yaw_rate_dps,
+                target_heading_deg=target_heading,
+                boat_speed=max(self.current_speed, 0.5),
+                wind_speed=self.wind_speed,
+                wind_dir_deg=self.wind_direction
+            )
+            self.set_rudder_angle(rudder_deg)
 
-        # Apply rudder angle
-        self.set_rudder_angle(rudder_angle)
+            self.get_logger().info(
+                f"MPC rudder: {rudder_deg:.1f}° | target={target_heading:.1f}° | "
+                f"heading={self.current_heading:.1f}° | cost={diag['cost']:.2f}"
+            )
+
+            diag_msg = String()
+            diag_msg.data = json.dumps({
+                'controller': 'MPC', 'rudder_deg': rudder_deg,
+                'heading': self.current_heading,
+                'target': target_heading, **diag
+            })
+            self.diag_publisher.publish(diag_msg)
+        else:
+            # ── Fallback: PID ────────────────────────────────────────
+            rudder_angle = self.calculate_rudder_angle_pid(target_heading)
+            self.set_rudder_angle(rudder_angle)
 
     def calculate_heading_to_target(self, target: Tuple[float, float]) -> float:
         """
@@ -592,44 +785,59 @@ class NavigationNode(Node):
         return R * c
 
     def publish_status(self):
-        """Publish navigation status"""
-        # Prepare status data
+        """Publish navigation status with Phase-5 diagnostics"""
         status = {
             "enabled": self.navigation_enabled,
             "current_position": [self.current_lat, self.current_lon],
             "heading": self.current_heading,
             "speed": self.current_speed,
             "wind_direction": self.wind_direction,
+            "wind_speed": self.wind_speed,
             "apparent_wind_angle": self.calculate_apparent_wind_angle(),
             "optimal_sail_angle": self.calculate_sail_angle(),
             "active_course": self.active_course,
             "current_target_idx": self.current_target_idx,
             "full_path": self.full_path,
-            "pid_gains": {
+            "phase5_architecture": {
+                "ukf": self.use_ukf,
+                "mpc": self.use_mpc,
+                "vpp": self.use_vpp,
+            },
+            "heel_angle": self.heel_angle,
+            "yaw_rate_dps": math.degrees(self.yaw_rate),
+        }
+
+        # UKF covariance trace (uncertainty indicator)
+        if self.ukf is not None:
+            try:
+                P = self.ukf.get_covariance()
+                status["ukf_trace"] = float(np.trace(P))
+                status["leeway_deg"] = self.ukf.get_leeway_deg()
+            except Exception:
+                pass
+
+        # PID gains (fallback or diagnostic)
+        try:
+            status["pid_gains"] = {
                 "kp": self.rudder_pid.Kp,
                 "ki": self.rudder_pid.Ki,
                 "kd": self.rudder_pid.Kd
             }
-        }
+        except AttributeError:
+            pass
 
-        # Add current target if available
+        # Target info
         target = self.get_current_target()
         if target:
             status["current_target"] = target
-
-            # Calculate distance to target
             distance = self.calculate_distance(
                 self.current_lat, self.current_lon,
                 target[0], target[1]
             )
             status["distance_to_target"] = distance
 
-        # Convert to JSON
-        status_json = json.dumps(status)
-
-        # Publish status
         msg = String()
-        msg.data = status_json
+        msg.data = json.dumps(status, default=str)
         self.nav_status_publisher.publish(msg)
 
 def main(args=None):

@@ -28,6 +28,9 @@ setup(
             'state_estimator = sailboat_control.state_estimator:main',
             'optimal_sail = sailboat_control.optimal_sail_controller:main',
             'health_monitor = sailboat_control.health_monitor:main',
+            'ukf_estimator = sailboat_control.ukf_state_estimator:main',
+            'mpc_steering = sailboat_control.mpc_controller:main',
+            'vpp_sail = sailboat_control.vpp_sail_optimizer:main',
         ],
     },
 )
