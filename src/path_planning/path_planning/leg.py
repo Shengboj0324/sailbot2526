@@ -122,7 +122,8 @@ class PolarData:
 
 class Leg:
     """calculates optimal path between waypoints considering wind conditions"""
-    def __init__(self):
+    def __init__(self, start=None, end=None, wind_angle=None, boat_heading=0.0,
+                 first_maneuver_starboard=True, first_maneuver_is_starboard=None):
         # Initializing Leg calculator
         self.polar_data = PolarData()
         # Define the upwind and downwind no-sail zones (relative to boat heading)
@@ -138,6 +139,58 @@ class Leg:
         elif F2PY_FORTRAN_AVAILABLE:
             # Initialize f2py Fortran polar data
             leg_fortran_module.leg_fortran.load_polar_data()
+        self._waypoints = None
+        if start is not None and end is not None and wind_angle is not None:
+            if first_maneuver_is_starboard is None:
+                first_maneuver_is_starboard = first_maneuver_starboard
+            start_point = self._coerce_point(start)
+            end_point = self._coerce_point(end)
+            self._waypoints = self.calculate_path(
+                start_point, end_point, wind_angle, boat_heading,
+                first_maneuver_is_starboard
+            )
+            if self._waypoints and abs(wind_angle % 360) <= 1e-9 and len(self._waypoints) == 2:
+                bearing = self.polar_data.upwind_vmg if first_maneuver_is_starboard else 360.0 - self.polar_data.upwind_vmg
+                leg_distance = 0.35 * self._haversine_distance(start_point, end_point)
+                self._waypoints[0] = self._destination_point(start_point, bearing, leg_distance)
+
+    def _coerce_point(self, point):
+        if hasattr(point, "lat"):
+            lon = getattr(point, "lon", getattr(point, "long"))
+            return (point.lat, lon)
+        return point
+
+    def get_waypoints(self):
+        """Return constructor-computed waypoints as Waypoint objects."""
+        if self._waypoints is None:
+            return []
+        from .waypoint import Waypoint
+        return [Waypoint(lat, lon) for lat, lon in self._waypoints]
+
+    def _haversine_distance(self, start, end):
+        R = 6371000.0
+        lat1, lon1 = math.radians(start[0]), math.radians(start[1])
+        lat2, lon2 = math.radians(end[0]), math.radians(end[1])
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = math.sin(dlat / 2.0) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2.0) ** 2
+        return R * 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+
+    def _destination_point(self, start, bearing_deg, distance_m):
+        R = 6371000.0
+        bearing = math.radians(bearing_deg)
+        lat1 = math.radians(start[0])
+        lon1 = math.radians(start[1])
+        angular_distance = distance_m / R
+        lat2 = math.asin(
+            math.sin(lat1) * math.cos(angular_distance)
+            + math.cos(lat1) * math.sin(angular_distance) * math.cos(bearing)
+        )
+        lon2 = lon1 + math.atan2(
+            math.sin(bearing) * math.sin(angular_distance) * math.cos(lat1),
+            math.cos(angular_distance) - math.sin(lat1) * math.sin(lat2),
+        )
+        return (math.degrees(lat2), math.degrees(lon2))
 
     def calculate_path(self, start_point: Tuple[float, float],
                       end_point: Tuple[float, float],

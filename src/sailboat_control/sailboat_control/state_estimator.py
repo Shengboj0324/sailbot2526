@@ -4,11 +4,23 @@ Extended Kalman Filter for boat state estimation
 Fuses GPS, IMU, and Compass data for accurate position and heading
 """
 import numpy as np
-import rclpy
-from rclpy.node import Node
-from sensor_msgs.msg import NavSatFix, Imu
-from std_msgs.msg import Float32, Float64
-from geometry_msgs.msg import PoseWithCovarianceStamped, TwistWithCovarianceStamped
+try:
+    import rclpy
+    from rclpy.node import Node
+    from sensor_msgs.msg import NavSatFix, Imu
+    from std_msgs.msg import Float32, Float64
+    from geometry_msgs.msg import PoseWithCovarianceStamped, TwistWithCovarianceStamped
+except ImportError:
+    rclpy = None
+
+    class Node:
+        pass
+
+    class _MissingROSMessage:
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError("ROS2 message classes require rclpy and ROS message packages")
+
+    NavSatFix = Imu = Float32 = Float64 = PoseWithCovarianceStamped = TwistWithCovarianceStamped = _MissingROSMessage
 
 class ExtendedKalmanFilter:
     """
@@ -88,6 +100,8 @@ class ExtendedKalmanFilter:
         
         # Predict covariance
         self.P = F @ self.P @ F.T + self.Q
+        self.P = 0.5 * (self.P + self.P.T)
+        self.P = np.clip(self.P, -9e5, 9e5)
     
     def update_gps_position(self, lat, lon):
         """Update with GPS position measurement"""
@@ -329,4 +343,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-

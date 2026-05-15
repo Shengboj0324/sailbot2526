@@ -31,6 +31,7 @@ setup(
             'ukf_estimator = sailboat_control.ukf_state_estimator:main',
             'mpc_steering = sailboat_control.mpc_controller:main',
             'vpp_sail = sailboat_control.vpp_sail_optimizer:main',
+            'mock_boat_demo = sailboat_control.mock_boat_simulation:main',
         ],
     },
 )

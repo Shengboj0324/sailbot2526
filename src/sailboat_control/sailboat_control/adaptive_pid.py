@@ -60,6 +60,7 @@ class AdaptivePID:
     
     def update(self, error, dt, boat_speed, use_gain_scheduling=True, use_feedforward=True):
         """Update PID controller with new error value"""
+        scaled_error = error / 180.0
         # Get gains
         if use_gain_scheduling:
             Kp, Ki, Kd = self.get_scheduled_gains(boat_speed)
@@ -67,12 +68,12 @@ class AdaptivePID:
             Kp, Ki, Kd = self.Kp_base, self.Ki_base, self.Kd_base
         
         # Proportional term
-        P = Kp * error
+        P = Kp * scaled_error
         
         # Integral term with anti-windup
         self.integral += error * dt
         self.integral = np.clip(self.integral, -self.integral_max, self.integral_max)
-        I = Ki * self.integral
+        I = Ki * self.integral / 180.0
         
         # Derivative term with filtering
         if dt > 0:
@@ -82,7 +83,7 @@ class AdaptivePID:
         
         # Low-pass filter on derivative (alpha = 0.1)
         self.filtered_derivative = 0.1 * derivative + 0.9 * self.filtered_derivative
-        D = Kd * self.filtered_derivative
+        D = Kd * self.filtered_derivative / 180.0
         
         # Calculate output
         output = P + I + D
@@ -101,6 +102,7 @@ class AdaptivePID:
         if output != output_clamped:
             saturation_error = output_clamped - output
             self.integral += saturation_error / (Ki + 1e-6) * 0.5
+            self.integral = np.clip(self.integral, -self.integral_max, self.integral_max)
         
         # Store for next iteration
         self.last_error = error
@@ -128,5 +130,6 @@ def normalize_angle(angle):
 def calculate_heading_error(target_heading, current_heading):
     """Calculate shortest angular distance between two headings"""
     error = target_heading - current_heading
+    if abs(abs(error) - 180.0) < 1e-9:
+        return 180.0 if error < 0.0 else -180.0
     return normalize_angle(error)
-

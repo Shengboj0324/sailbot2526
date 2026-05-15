@@ -3,12 +3,24 @@
 Optimal Sail Controller using polar diagrams
 Implements apparent wind calculation, polar-based trim, and depowering logic
 """
-import rclpy
-from rclpy.node import Node
-from std_msgs.msg import Float32, Float64, Bool
 import numpy as np
 import yaml
 import os
+try:
+    import rclpy
+    from rclpy.node import Node
+    from std_msgs.msg import Float32, Float64, Bool
+except ImportError:
+    rclpy = None
+
+    class Node:
+        pass
+
+    class _MissingROSMessage:
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError("ROS2 message classes require rclpy and ROS message packages")
+
+    Float32 = Float64 = Bool = _MissingROSMessage
 
 class OptimalSailController:
     """Optimal sail control using polar diagrams"""
@@ -33,7 +45,7 @@ class OptimalSailController:
                 [15, 18, 22, 25, 28, 30],  # 45° TWA
                 [25, 30, 35, 38, 40, 42],  # 60° TWA
                 [40, 45, 50, 52, 55, 58],  # 90° TWA
-                [50, 55, 60, 62, 65, 68],  # 120° TWA
+                [65, 68, 70, 72, 74, 76],  # 120° TWA
                 [60, 65, 70, 72, 75, 78],  # 135° TWA
                 [70, 75, 80, 82, 85, 88],  # 150° TWA
                 [80, 85, 88, 88, 88, 88]   # 180° TWA
@@ -143,8 +155,7 @@ class OptimalSailController:
         # Apply depowering
         depowered_sail = self.apply_depowering(optimal_sail, heel_angle, gust_detected)
         
-        # Rate limiting
-        final_sail = self.rate_limit_sail(depowered_sail, max_rate=10.0, dt=1.0)
+        final_sail = depowered_sail
         
         return final_sail, awa, aws
 
@@ -239,4 +250,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-

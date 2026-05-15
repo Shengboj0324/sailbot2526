@@ -1,4 +1,5 @@
 from path_planning.path_planning.waypoint import Waypoint
+from .common import ControlMode
 
 class Event:
     def initialize_event(self, boat):
@@ -13,7 +14,7 @@ class F(Event):
         """fleet race event init"""
         print("initializing fleet race event type...")
         boat.state.autonomous_enabled = False
-        boat.state.control_mode = boat.ControlMode.RC
+        boat.state.control_mode = ControlMode.RC
 
 class Pr(Event):
     def initialize_event(self, boat):
